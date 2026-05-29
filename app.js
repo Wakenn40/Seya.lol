@@ -17,6 +17,23 @@ const CORE_ELEMENTS = ['avatar', 'name', 'bio'];
 const isCoreElement = (key) => CORE_ELEMENTS.includes(key) || (key.startsWith('link-'));
 const CORE_Z_INDEX = 1000;
 
+/* Fields that are per-floor (swapped when changing floors) */
+const FLOOR_FIELDS = [
+  'displayName', 'displayNameHtml', 'bio', 'bioHtml', 'avatar',
+  'links', 'linksEnabled', 'layout', 'customObjects', 'customObjectCounter',
+  'deleted', 'layers', 'layerCounter', 'activeLayer',
+  'animations', 'effects', 'nameSize', 'textManualSize',
+  'font', 'customFonts',
+  'discord', 'discordWidgets', 'discordWidgetTilt', 'discordWidgetScale', 'discordWidgetOpacity', 'discordWidgetBgColor',
+  'spotifyWidgetTilt', 'customPlayerTilt',
+  'customPlayer', 'customPlayerScale',
+  'phoneFrameImage', 'phoneBlur', 'phoneBlurStrength', 'phoneBorderRadius',
+  'cursorImage', 'cursorSize', 'cursorTrail',
+  'linkIconScale', 'iconsColorName',
+  'clickToEnter',
+  'badgesEnabled', 'badgesColorName', 'badgesGlow'
+];
+
 /* ================================================
    STATE
    ================================================ */
@@ -41,12 +58,11 @@ const state = {
       { emoji: '🐦', label: 'Twitter / X', url: 'https://x.com', style: 'icon' },
     ],
     bg: 'bg-black',
-    bgImageGlobal: '', // dataURL
-    bgImagePhone: '',  // dataURL (applies to .phone-inner)
-    bgPhoneOpacity: 1, // 0..1
-    phoneBlur: false,
-    phoneBlurStrength: 3,
-    phoneBorderRadius: 42,
+    bgImageGlobal: '',
+    bgImagePhone: '',
+    bgPhoneOpacity: 1,
+    bgEffect: null,
+    fadeIn: false,
     deleted: {
       avatar: false,
       name: false,
@@ -62,6 +78,8 @@ const state = {
       bio: false,
     },
     customObjects: [],
+    customPlayer: { enabled: false, title: '', cover: '', music: '', volume: 1, muted: false, bgColor: '#1a1a1a', bgImage: '', bgOpacity: 1 },
+    customPlayerScale: 1,
     customObjectCounter: 0,
     animations: {}, // { 'avatar': { animation: 'shake', speed: 1 }, 'name': {...}, ... }
     phoneFrameImage: '', // custom frame image (dataURL)
@@ -72,6 +90,15 @@ const state = {
     clickToEnter: false,
     clickToEnterText: 'Click to enter',
     discordWidgets: false,
+    discordWidgetTilt: false,
+    discordWidgetScale: 1,
+    discordWidgetOpacity: 1,
+    discordWidgetBgColor: '#1a1a1a',
+    spotifyWidgetTilt: false,
+    customPlayerTilt: false,
+    bioLayersEnabled: false,
+    floors: [null, {}, {}],
+    activeFloor: 0,
     layers: [
       { id: 'layer-0', name: 'Main Layer', objects: ['phone', 'avatar', 'name', 'bio', 'link-0', 'link-1', 'link-2', 'link-3', 'link-4'] }
     ],
@@ -114,6 +141,8 @@ function getDefaultPageData() {
     bgImageGlobal: '',
     bgImagePhone: '',
     bgPhoneOpacity: 1,
+    bgEffect: null,
+    fadeIn: false,
     deleted: { avatar: false, name: false, bio: false, phone: false },
     btnStyle: '',
     accentColor: '#d6d6d6',
@@ -122,15 +151,27 @@ function getDefaultPageData() {
     textManualSize: { name: false, bio: false },
     customFonts: [],
     customObjects: [],
+    customPlayer: { enabled: false, title: '', cover: '', music: '', volume: 1, muted: false, bgColor: '#1a1a1a', bgImage: '', bgOpacity: 1 },
+    customPlayerScale: 1,
     customObjectCounter: 0,
     animations: {},
     effects: {},
+    phoneBlur: false,
+    phoneBlurStrength: 3,
+    phoneBorderRadius: 42,
     phoneFrameImage: '',
     cursorImage: '',
     cursorSize: 32,
     cursorTrail: { mode: 'none', image: '', config: {} },
     discord: { id: '', username: '', avatar: '', discriminator: '0' },
     clickToEnter: { enabled: false, text: 'Click to enter' },
+    badgesEnabled: true,
+    badgesColorName: '',
+    badgesGlow: false,
+    iconsColorName: '',
+    bioLayersEnabled: false,
+    floors: [null, {}, {}],
+    activeFloor: 0,
     layers: [
       { id: 'layer-0', name: 'Main Layer', objects: ['phone', 'avatar', 'name', 'bio', 'link-0', 'link-1', 'link-2', 'link-3', 'link-4'] }
     ],
@@ -143,11 +184,37 @@ function getDefaultPageData() {
       links: { x: 219, y: 434, w: 232, h: 44 },
       phone: { x: 0, y: 0, w: 280, h: 560 }
     },
-    clickToEnter: false,
-    clickToEnterText: 'Click to enter',
-    discordWidgets: false
+    discordWidgets: false,
+    discordWidgetTilt: false,
+    discordWidgetScale: 1,
+    discordWidgetOpacity: 1,
+    discordWidgetBgColor: '#1a1a1a',
+    spotifyWidgetTilt: false,
+    customPlayerTilt: false,
+    linkIconScale: 1
   };
 }
+
+/* Widget effect helpers (global, used by both public and builder pages) */
+window.WIDGET_KEYS = ['spotify-widget', 'discord-widget', 'custom-player-widget'];
+
+window.syncWidgetEffect = (key) => {
+  let el = document.querySelector(`[data-editable="${key}"]`);
+  if (!el) el = document.querySelector(`[data-public="${key}"]`);
+  if (!el) return;
+  if (!state.page.effects) state.page.effects = {};
+  const effect = state.page.effects[key];
+  el.classList.remove('widget-crt-active', 'widget-halftone-active');
+  if (effect && effect.type === 'crt') {
+    el.classList.add('widget-crt-active');
+  } else if (effect && effect.type === 'halftone') {
+    el.classList.add('widget-halftone-active');
+  }
+};
+
+window.updateAllWidgetEffects = () => {
+  window.WIDGET_KEYS.forEach(key => window.syncWidgetEffect(key));
+};
 
 function normalizePageData(pageData) {
   const defaults = getDefaultPageData();
@@ -178,6 +245,17 @@ function normalizePageData(pageData) {
   // Ensure cursorTrail.config is an object, not an array (PHP json_decode([]) → array bug)
   if (normalized.cursorTrail && Array.isArray(normalized.cursorTrail.config)) {
     normalized.cursorTrail.config = {};
+  }
+  // Recompute layerCounter from loaded layers and validate activeLayer
+  if (normalized.layers && normalized.layers.length) {
+    let maxId = 0;
+    normalized.layers.forEach(l => {
+      const m = l.id && l.id.match(/layer-(\d+)/);
+      if (m) maxId = Math.max(maxId, parseInt(m[1], 10));
+    });
+    normalized.layerCounter = maxId + 1;
+    const activeExists = normalized.layers.some(l => l.id === normalized.activeLayer);
+    if (!activeExists) normalized.activeLayer = normalized.layers[0].id;
   }
   console.log('[normalizePageData] normalized.layout.phone (after fix):', JSON.stringify(normalized.layout.phone));
   console.log('[normalizePageData] normalized.customFonts:', JSON.stringify(normalized.customFonts || []).substring(0, 100));
@@ -399,6 +477,16 @@ function showScreen(id, opts = {}) {
 
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById('screen-' + id);
+  
+  // Screen not found in current page — do a full redirect
+  if (!target) {
+    const routeMap = { auth: '/auth', dashboard: '/dashboard', builder: '/builder', landing: '/' };
+    if (routeMap[id] !== undefined) {
+      window.location.href = routeMap[id];
+    }
+    return;
+  }
+  
   if (target) {
     target.classList.add('active');
 
@@ -426,6 +514,30 @@ function showScreen(id, opts = {}) {
           discordInfo.style.display = 'block';
         }
       }
+    }
+
+    if (id === 'change-password') {
+      document.getElementById('cp-step-0').style.display = 'none';
+      document.getElementById('cp-step-1').style.display = 'none';
+      document.getElementById('cp-step-2').style.display = 'none';
+      document.getElementById('cp-current-password').value = '';
+      document.getElementById('cp-current-hint').textContent = '';
+      document.getElementById('cp-new-password').value = '';
+      document.getElementById('cp-new-hint').textContent = '';
+      document.getElementById('cp-confirm-password').value = '';
+      document.getElementById('cp-confirm-hint').textContent = '';
+      document.getElementById('cp-final-password').value = '';
+      document.getElementById('cp-final-hint').textContent = '';
+      document.getElementById('cp-final-confirm').value = '';
+      document.getElementById('cp-final-confirm-hint').textContent = '';
+      document.getElementById('cp-2fa-code').value = '';
+      document.getElementById('cp-2fa-hint').textContent = '';
+      document.getElementById('cp-forgot-wrap').style.display = 'none';
+      const nickInput = document.getElementById('cp-nickname');
+      if (nickInput) {
+        nickInput.value = state.currentUser || localStorage.getItem('username') || '';
+      }
+      checkCp2FAStatus();
     }
 
     if (id === 'hub' || id === 'builder') {
@@ -459,7 +571,9 @@ if (id === 'public') {
           startTrail();
         }, 50);
         musicBg.userStopped = false;
-        if (state.page.music && state.page.music.src) playBgMusic();
+        const cte = state.page.clickToEnter;
+        const hasClickToEnter = cte && (cte.enabled === true || cte === true);
+        if (state.page.music && state.page.music.src && !hasClickToEnter) playBgMusic();
       });
     } else {
       stopTrail();
@@ -524,11 +638,13 @@ async function loadPublicPage(username) {
       // Sync 3D Tilt profile toggle after loading
       if (window.syncTilt3DProfileToggle) window.syncTilt3DProfileToggle();
       
+      reapplyHalftoneEffects();
+      
       document.body.classList.add('public-page-active');
       showScreen('public', { push: true });
       return true;
     } else {
-      console.log('Page not available:', data.message || 'unknown reason');
+      console.log('Page not available:', data.message || 'unknown message');
       showScreen('landing', { push: false });
       return false;
     }
@@ -556,9 +672,15 @@ function showPublicPlaceholder(username) {
 }
 
 function setupHistoryRouting() {
-  const initialPath = window.__INITIAL_PATH__;
   const publicUser = window.__PUBLIC_USER__;
   const publicValid = window.__PUBLIC_VALID__;
+  
+  // Determine initial path from __INITIAL_PATH__ or current URL
+  let initialPath = window.__INITIAL_PATH__;
+  if (!initialPath) {
+    const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (pathname !== '/') initialPath = pathname;
+  }
   
   console.log('setupHistoryRouting called:', { publicUser, publicValid, initialPath, pageData: !!window.__PAGE_DATA__ });
   
@@ -587,6 +709,8 @@ function setupHistoryRouting() {
     
     // Sync 3D Tilt profile toggle after preloading
     if (window.syncTilt3DProfileToggle) window.syncTilt3DProfileToggle();
+    
+    reapplyHalftoneEffects();
     
     document.body.classList.add('public-page-active');
     setTimeout(() => {
@@ -619,7 +743,13 @@ function setupHistoryRouting() {
   }
 
   if (!history.state || !history.state.screen) {
-    history.replaceState({ screen: 'landing', payload: null }, '', '/');
+    const knownRoutes = ['landing', 'auth', 'dashboard', 'builder', 'hub', 'public'];
+    let initialScreen = 'landing';
+    if (initialPath && initialPath !== '/') {
+      const p = initialPath.replace(/^\//, '');
+      if (knownRoutes.includes(p)) initialScreen = p;
+    }
+    history.replaceState({ screen: initialScreen, payload: null }, '', initialScreen === 'landing' ? '/' : '/' + initialScreen);
   }
 
   window.addEventListener('popstate', (ev) => {
@@ -639,6 +769,8 @@ let authToken = localStorage.getItem('authToken');
 
 function setupAuth() {
   const nicknameInput = document.getElementById('nickname-input');
+  if (!nicknameInput) return;
+
   const submitBtn     = document.getElementById('auth-submit-btn');
   const hint          = document.getElementById('nickname-hint');
 
@@ -688,7 +820,7 @@ function setupAuth() {
   if (discordBtn) {
     discordBtn.addEventListener('click', () => {
       const clientId = '1505514252473991238';
-      const redirectUri = encodeURIComponent('http://seya.lol/api/discord-callback.php');
+      const redirectUri = encodeURIComponent('https://seya.lol/api/discord-callback.php');
       const scope = 'identify%20guilds%20email';
       const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
       window.location.href = oauthUrl;
@@ -775,14 +907,20 @@ async function handleAuthSubmit() {
       state.page.displayName = '@' + val;
       state.page.displayNameHtml = escapeHtml(state.page.displayName);
 
-      document.getElementById('greet-name').textContent = '@' + val;
-      document.getElementById('nav-avatar').textContent = val[0].toUpperCase();
+      const greetName = document.getElementById('greet-name');
+      if (greetName) greetName.textContent = '@' + val;
+      const navAvatar = document.getElementById('nav-avatar');
+      if (navAvatar) navAvatar.textContent = val[0].toUpperCase();
       syncPublicUrlLabels();
 
-      document.getElementById('edit-display-name').value = '@' + val;
-      document.getElementById('edit-bio').value = state.page.bio;
+      const editName = document.getElementById('edit-display-name');
+      if (editName) editName.value = '@' + val;
+      const editBio = document.getElementById('edit-bio');
+      if (editBio) editBio.value = state.page.bio;
 
       updatePreview();
+
+      reapplyHalftoneEffects();
 
       showScreen('landing');
       updateLandingButtons();
@@ -828,6 +966,11 @@ async function handleAuthSubmit() {
         return;
       }
 
+      if (data.requires2fa) {
+        show2FALogin();
+        return;
+      }
+
       authToken = data.token;
       localStorage.setItem('authToken', authToken);
       localStorage.setItem('username', val);
@@ -843,14 +986,21 @@ async function handleAuthSubmit() {
       state.page.displayName = '@' + val;
       state.page.displayNameHtml = escapeHtml(state.page.displayName);
 
-      document.getElementById('greet-name').textContent = '@' + val;
-      document.getElementById('nav-avatar').textContent = val[0].toUpperCase();
+      const greetName = document.getElementById('greet-name');
+      if (greetName) greetName.textContent = '@' + val;
+      const navAvatar = document.getElementById('nav-avatar');
+      if (navAvatar) navAvatar.textContent = val[0].toUpperCase();
       syncPublicUrlLabels();
 
-      document.getElementById('edit-display-name').value = '@' + val;
-      document.getElementById('edit-bio').value = state.page.bio || '';
+      const editName = document.getElementById('edit-display-name');
+      if (editName) editName.value = '@' + val;
+      const editBio = document.getElementById('edit-bio');
+      if (editBio) editBio.value = state.page.bio || '';
 
       updatePreview();
+
+      reapplyHalftoneEffects();
+      load2FAStatus();
 
       showScreen('landing');
       updateLandingButtons();
@@ -874,6 +1024,256 @@ function resetAuthForm() {
   document.getElementById('password-hint').textContent = '';
   document.getElementById('confirm-password-input').value = '';
   document.getElementById('confirm-password-hint').textContent = '';
+}
+
+let cpNewPassword = '';
+
+function setupChangePassword() {
+  const nicknameInput = document.getElementById('cp-nickname');
+  const currentInput = document.getElementById('cp-current-password');
+  const newInput = document.getElementById('cp-new-password');
+  const confirmInput = document.getElementById('cp-confirm-password');
+  const finalInput = document.getElementById('cp-final-password');
+  const finalConfirm = document.getElementById('cp-final-confirm');
+  const step1Btn = document.getElementById('cp-step1-btn');
+  const step2Btn = document.getElementById('cp-step2-btn');
+
+  if (!step1Btn) return;
+
+  currentInput.addEventListener('input', () => {
+    document.getElementById('cp-current-hint').textContent = '';
+  });
+
+  newInput.addEventListener('input', () => {
+    const h = document.getElementById('cp-new-hint');
+    if (newInput.value.length > 0 && newInput.value.length < 4) {
+      h.textContent = 'Minimum 4 characters';
+    } else {
+      h.textContent = '';
+    }
+  });
+
+  confirmInput.addEventListener('input', () => {
+    const h = document.getElementById('cp-confirm-hint');
+    if (confirmInput.value !== newInput.value && confirmInput.value.length > 0) {
+      h.textContent = 'Passwords do not match';
+    } else {
+      h.textContent = '';
+    }
+  });
+
+  finalInput.addEventListener('input', () => {
+    const h = document.getElementById('cp-final-hint');
+    if (finalInput.value.length > 0 && finalInput.value.length < 4) {
+      h.textContent = 'Minimum 4 characters';
+    } else {
+      h.textContent = '';
+    }
+  });
+
+  finalConfirm.addEventListener('input', () => {
+    const h = document.getElementById('cp-final-confirm-hint');
+    if (finalConfirm.value !== finalInput.value && finalConfirm.value.length > 0) {
+      h.textContent = 'Passwords do not match';
+    } else {
+      h.textContent = '';
+    }
+  });
+
+  const handleEnter1 = e => { if (e.key === 'Enter') handleCpStep1(); };
+  currentInput.addEventListener('keydown', handleEnter1);
+  newInput.addEventListener('keydown', handleEnter1);
+  confirmInput.addEventListener('keydown', handleEnter1);
+
+  const handleEnter2 = e => { if (e.key === 'Enter') handleCpStep2(); };
+  finalInput.addEventListener('keydown', handleEnter2);
+  finalConfirm.addEventListener('keydown', handleEnter2);
+
+  step1Btn.addEventListener('click', handleCpStep1);
+  step2Btn.addEventListener('click', handleCpStep2);
+
+  const faBtn = document.getElementById('cp-2fa-verify-btn');
+  const faInput = document.getElementById('cp-2fa-code');
+  if (faBtn && faInput) {
+    faBtn.addEventListener('click', handleCp2FAVerify);
+    faInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleCp2FAVerify(); });
+  }
+}
+
+function checkCp2FAStatus() {
+  const step0 = document.getElementById('cp-step-0');
+  const step1 = document.getElementById('cp-step-1');
+  const required = document.getElementById('cp-2fa-required');
+  const inputArea = document.getElementById('cp-2fa-input-area');
+  const hint = document.getElementById('cp-2fa-hint');
+  const codeInput = document.getElementById('cp-2fa-code');
+  step0.style.display = '';
+  hint.textContent = 'Checking...';
+  hint.style.color = 'var(--muted)';
+
+  fetch('/api/get-email-status?token=' + encodeURIComponent(authToken), {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.has2fa) {
+      required.style.display = 'none';
+      inputArea.style.display = '';
+      hint.textContent = '';
+      codeInput.focus();
+    } else {
+      required.style.display = '';
+      inputArea.style.display = 'none';
+      hint.textContent = '';
+    }
+  })
+  .catch(() => {
+    hint.textContent = 'Failed to check 2FA status';
+    hint.style.color = 'var(--danger)';
+  });
+}
+
+async function handleCp2FAVerify() {
+  const input = document.getElementById('cp-2fa-code');
+  const hint = document.getElementById('cp-2fa-hint');
+  const btn = document.getElementById('cp-2fa-verify-btn');
+  const code = input.value.trim();
+
+  if (!code || code.length !== 6) {
+    hint.textContent = 'Enter the 6-digit code from your authenticator app';
+    hint.style.color = 'var(--danger)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  try {
+    const res = await fetch('/api/verify-totp-for-action?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ code })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('cp-step-0').style.display = 'none';
+      document.getElementById('cp-step-1').style.display = '';
+      document.getElementById('cp-forgot-wrap').style.display = 'block';
+    } else {
+      hint.textContent = data.error || 'Invalid code';
+      hint.style.color = 'var(--danger)';
+    }
+  } catch (e) {
+    hint.textContent = 'Server error';
+    hint.style.color = 'var(--danger)';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Verify →';
+}
+
+async function handleCpStep1() {
+  const currentInput = document.getElementById('cp-current-password');
+  const newInput = document.getElementById('cp-new-password');
+  const confirmInput = document.getElementById('cp-confirm-password');
+  const currentHint = document.getElementById('cp-current-hint');
+  const newHint = document.getElementById('cp-new-hint');
+  const confirmHint = document.getElementById('cp-confirm-hint');
+
+  const current = currentInput.value;
+  const newPw = newInput.value;
+  const confirm = confirmInput.value;
+
+  if (!current) {
+    currentHint.textContent = 'Enter your current password';
+    currentInput.focus();
+    return;
+  }
+
+  if (!newPw || newPw.length < 4) {
+    newHint.textContent = 'New password must be at least 4 characters';
+    newInput.focus();
+    return;
+  }
+
+  if (newPw !== confirm) {
+    confirmHint.textContent = 'Passwords do not match';
+    confirmInput.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/change-password?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ action: 'verify', currentPassword: current })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      currentHint.textContent = data.error || 'Current password is incorrect';
+      return;
+    }
+
+    cpNewPassword = newPw;
+    document.getElementById('cp-step-1').style.display = 'none';
+    document.getElementById('cp-step-2').style.display = '';
+  } catch (e) {
+    currentHint.textContent = 'Server error. Please try again.';
+    console.error(e);
+  }
+}
+
+async function handleCpStep2() {
+  const finalInput = document.getElementById('cp-final-password');
+  const finalConfirm = document.getElementById('cp-final-confirm');
+  const finalHint = document.getElementById('cp-final-hint');
+  const finalConfirmHint = document.getElementById('cp-final-confirm-hint');
+
+  const newPw = finalInput.value;
+  const confirm = finalConfirm.value;
+
+  if (!newPw || newPw.length < 4) {
+    finalHint.textContent = 'Password must be at least 4 characters';
+    finalInput.focus();
+    return;
+  }
+
+  if (newPw !== confirm) {
+    finalConfirmHint.textContent = 'Passwords do not match';
+    finalConfirm.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/change-password?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ action: 'update', newPassword: newPw })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      finalHint.textContent = data.error || 'Failed to change password';
+      return;
+    }
+
+    authToken = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('username');
+    state.currentUser = null;
+    showToast('Password changed. Please log in with your new password.');
+    setAuthMode('login');
+    showScreen('auth');
+  } catch (e) {
+    finalHint.textContent = 'Server error. Please try again.';
+    console.error(e);
+  }
 }
 
 async function checkSession() {
@@ -930,19 +1330,26 @@ async function checkSession() {
       // Sync 3D Tilt profile toggle after loading
       if (window.syncTilt3DProfileToggle) window.syncTilt3DProfileToggle();
       
-      document.getElementById('greet-name').textContent = '@' + data.username;
-      document.getElementById('nav-avatar').textContent = data.username[0].toUpperCase();
+      const greetEl = document.getElementById('greet-name');
+      if (greetEl) greetEl.textContent = '@' + data.username;
+      const navEl = document.getElementById('nav-avatar');
+      if (navEl) navEl.textContent = data.username[0].toUpperCase();
       syncPublicUrlLabels();
       syncDiscordUI();
+      load2FAStatus();
       
-      document.getElementById('edit-display-name').value = state.page.displayName || '';
-      document.getElementById('edit-bio').value = state.page.bio || '';
+      const editNameEl = document.getElementById('edit-display-name');
+      if (editNameEl) editNameEl.value = state.page.displayName || '';
+      const editBioEl = document.getElementById('edit-bio');
+      if (editBioEl) editBioEl.value = state.page.bio || '';
       syncUiFromState();
       
       localStorage.setItem('username', data.username);
       
       originalPageState = JSON.parse(JSON.stringify(state.page));
       pageModified = false;
+      
+      reapplyHalftoneEffects();
       
       return true;
     } else {
@@ -987,6 +1394,8 @@ function logout() {
     bgImageGlobal: '',
     bgImagePhone: '',
     bgPhoneOpacity: 1,
+    bgEffect: null,
+    fadeIn: false,
     deleted: { avatar: false, name: false, bio: false, phone: false },
     btnStyle: '',
     accentColor: '#d6d6d6',
@@ -1071,11 +1480,42 @@ function getDataUrlSize(dataUrl) {
   return Math.ceil((base64.length * 3) / 4);
 }
 
+function backupHalftoneSrcs() {
+  const backup = {};
+  (state.page.customObjects || []).forEach(obj => {
+    const key = `obj-${obj.id}`;
+    const effect = state.page.effects[key];
+    if (effect && (effect.type === 'halftone' || effect.type === 'crt') && obj.originalSrc) {
+      backup[key] = { src: obj.src, originalSrc: obj.originalSrc };
+      obj.src = obj.originalSrc;
+      delete obj.originalSrc;
+    }
+  });
+  return backup;
+}
+
+function restoreHalftoneSrcs(backup) {
+  (state.page.customObjects || []).forEach(obj => {
+    const key = `obj-${obj.id}`;
+    if (backup[key]) {
+      obj.src = backup[key].src;
+      obj.originalSrc = backup[key].originalSrc;
+    }
+  });
+}
+
 async function savePageToServer(publish = false) {
   if (!authToken) {
     showToast('Please log in to save');
     return;
   }
+  
+  // Sync current floor data before saving (so all floors are saved)
+  if (state.page.bioLayersEnabled) {
+    saveCurrentFloor();
+  }
+  
+  const halftoneBackup = backupHalftoneSrcs();
   
   console.log('Saving pageData.customObjects:', JSON.stringify(state.page.customObjects).substring(0, 500));
   console.log('Saving pageData.layout:', JSON.stringify(state.page.layout).substring(0, 500));
@@ -1100,7 +1540,13 @@ async function savePageToServer(publish = false) {
         'Authorization': `Bearer ${authToken}`
       },
       body: JSON.stringify({ 
-        pageData: state.page,
+        pageData: (publish && state.page.bioLayersEnabled)
+          ? (() => { 
+              const copy = JSON.parse(JSON.stringify(state.page));
+              copy.bioLayersEnabled = false;
+              return copy;
+            })()
+          : state.page,
         publish: publish
       })
     });
@@ -1135,6 +1581,8 @@ async function savePageToServer(publish = false) {
     console.error('Save failed:', e);
     showToast('Save error');
   }
+  
+  restoreHalftoneSrcs(halftoneBackup);
 }
 
 async function autoSaveIfNeeded() {
@@ -1146,6 +1594,8 @@ async function autoSaveIfNeeded() {
 function setAuthMode(mode) {
   state.auth.mode = mode;
   const title   = document.getElementById('auth-title');
+  if (!title) return;
+
   const sub     = document.getElementById('auth-sub');
   const swText  = document.getElementById('auth-switch-text');
   const swLink  = document.getElementById('auth-switch-link');
@@ -1157,26 +1607,30 @@ function setAuthMode(mode) {
 
   if (mode === 'login') {
     title.textContent  = 'Welcome back';
-    sub.textContent    = 'Enter your nickname and password';
-    swText.textContent = "Don't have an account?";
-    swLink.textContent = ' Sign up';
-    passwordWrap.style.display = '';
-    confirmWrap.style.display = 'none';
+    if (sub) sub.textContent    = 'Enter your nickname and password';
+    if (swText) swText.textContent = "Don't have an account?";
+    if (swLink) swLink.textContent = ' Sign up';
+    if (passwordWrap) passwordWrap.style.display = '';
+    if (confirmWrap) confirmWrap.style.display = 'none';
     if (discordBtn) discordBtn.style.display = '';
-    authDivider.style.display = '';
-    document.getElementById('password-input').placeholder = 'Your password';
-    document.getElementById('auth-submit-btn').textContent = 'Log in →';
+    if (authDivider) authDivider.style.display = '';
+    const pi = document.getElementById('password-input');
+    if (pi) pi.placeholder = 'Your password';
+    const sb = document.getElementById('auth-submit-btn');
+    if (sb) sb.textContent = 'Log in →';
   } else {
     title.textContent  = 'Create account';
-    sub.textContent    = 'Choose a nickname and password';
-    swText.textContent = 'Already have an account?';
-    swLink.textContent = ' Log in';
-    passwordWrap.style.display = '';
-    confirmWrap.style.display = '';
+    if (sub) sub.textContent    = 'Choose a nickname and password';
+    if (swText) swText.textContent = 'Already have an account?';
+    if (swLink) swLink.textContent = ' Log in';
+    if (passwordWrap) passwordWrap.style.display = '';
+    if (confirmWrap) confirmWrap.style.display = '';
     if (discordBtn) discordBtn.style.display = '';
-    authDivider.style.display = '';
-    document.getElementById('password-input').placeholder = 'Create a password';
-    document.getElementById('auth-submit-btn').textContent = 'Create account →';
+    if (authDivider) authDivider.style.display = '';
+    const pi = document.getElementById('password-input');
+    if (pi) pi.placeholder = 'Create a password';
+    const sb = document.getElementById('auth-submit-btn');
+    if (sb) sb.textContent = 'Create account →';
   }
 }
 
@@ -1209,11 +1663,12 @@ function syncDiscordUI() {
 }
 
 function setupDiscord() {
+  ensureDiscordSprite();
   const connectBtn = document.getElementById('dash-discord-btn');
   if (connectBtn) {
     connectBtn.addEventListener('click', () => {
       const clientId = '1505514252473991238';
-      const redirectUri = encodeURIComponent('http://seya.lol/api/discord-callback.php');
+      const redirectUri = encodeURIComponent('https://seya.lol/api/discord-callback.php');
       const scope = 'identify%20guilds%20email';
       const state = encodeURIComponent(authToken || '');
       const oauthUrl = 'https://discord.com/oauth2/authorize?client_id=' + clientId + '&redirect_uri=' + redirectUri + '&response_type=code&scope=' + scope + '&state=' + state;
@@ -1225,17 +1680,23 @@ function setupDiscord() {
   if (unlinkBtn) {
     unlinkBtn.addEventListener('click', async () => {
       try {
-        const res = await fetch('/api/discord-unlink.php', {
+        const res = await fetch('/api/discord-unlink.php?token=' + encodeURIComponent(authToken), {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + authToken }
         });
         const data = await res.json();
         if (data.success) {
           state.page.discord = { id: '', username: '', avatar: '', discriminator: '0' };
+          state.page.discordWidgets = false;
           syncDiscordUI();
+          updateDiscordWidgets();
+          showToast('Discord disconnected');
+        } else {
+          showToast(data.error || 'Failed to disconnect Discord');
         }
       } catch (e) {
         console.error('Failed to unlink Discord', e);
+        showToast('Network error — could not disconnect');
       }
     });
   }
@@ -1271,12 +1732,75 @@ function setupWidgets() {
   markPageModified();
     updateDiscordWidgets();
   });
+
+  // Discord widget scale
+  const scaleSlider = document.getElementById('discord-widget-scale');
+  if (scaleSlider) {
+    scaleSlider.value = String(state.page.discordWidgetScale ?? 1);
+    scaleSlider.addEventListener('input', () => {
+      pushHistory();
+      state.page.discordWidgetScale = Number(scaleSlider.value);
+      markPageModified();
+      updateDiscordWidgets();
+    });
+  }
+
+  // Discord widget opacity
+  const opacitySlider = document.getElementById('discord-widget-opacity');
+  if (opacitySlider) {
+    opacitySlider.value = String(state.page.discordWidgetOpacity ?? 1);
+    opacitySlider.addEventListener('input', () => {
+      pushHistory();
+      state.page.discordWidgetOpacity = Number(opacitySlider.value);
+      markPageModified();
+      updateDiscordWidgets();
+    });
+  }
+
+  // Discord widget background color
+  const bgColorInput = document.getElementById('discord-widget-bgcolor');
+  if (bgColorInput) {
+    bgColorInput.value = state.page.discordWidgetBgColor || '#1a1a1a';
+    bgColorInput.addEventListener('input', () => {
+      pushHistory();
+      state.page.discordWidgetBgColor = bgColorInput.value;
+      markPageModified();
+      updateDiscordWidgets();
+    });
+  }
+
+  // Discord widget 3D tilt toggle
+  const tiltBtn = document.getElementById('discord-widget-tilt-toggle');
+  if (tiltBtn) {
+    const syncTilt = () => {
+      const on = !!state.page.discordWidgetTilt;
+      tiltBtn.textContent = on ? '3D Tilt: ON' : '3D Tilt: OFF';
+      tiltBtn.classList.toggle('btn--active', on);
+    };
+    syncTilt();
+    tiltBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.discordWidgetTilt = !state.page.discordWidgetTilt;
+      syncTilt();
+      markPageModified();
+    });
+  }
 }
 
 function setupSpotifyWidget() {
   const urlInput = document.getElementById('spotify-widget-url');
   const addBtn = document.getElementById('spotify-widget-add');
-  
+  const scaleSlider = document.getElementById('spotify-widget-scale');
+
+  if (scaleSlider) {
+    scaleSlider.addEventListener('input', () => {
+      pushHistory();
+      state.page.spotifyWidgetScale = Number(scaleSlider.value);
+      markPageModified();
+      updatePreviewSpotifyWidget();
+    });
+  }
+
   if (addBtn && urlInput) {
     addBtn.addEventListener('click', () => {
       const input = urlInput.value.trim();
@@ -1286,13 +1810,11 @@ function setupSpotifyWidget() {
       }
       
       let embedUrl = null;
-      let fullIframe = null;
       
       if (input.includes('<iframe')) {
         const srcMatch = input.match(/src=["']([^"']+)["']/i);
         if (srcMatch) {
           embedUrl = srcMatch[1];
-          fullIframe = input;
         } else {
           showToast('Could not extract URL from iframe code');
           return;
@@ -1312,75 +1834,456 @@ function setupSpotifyWidget() {
       pushHistory();
       state.page.spotifyWidget = {
         enabled: true,
-        embedUrl: embedUrl,
-        fullIframe: fullIframe || null
+        embedUrl: embedUrl
       };
       markPageModified();
       
-updatePublicSpotifyWidget();
-updatePreviewSpotifyWidget();
+      updatePublicSpotifyWidget();
+      updatePreviewSpotifyWidget();
 
-      
       showToast('Spotify track added!');
+    });
+  }
+
+  // Spotify widget 3D tilt toggle
+  const tiltBtn = document.getElementById('spotify-widget-tilt-toggle');
+  if (tiltBtn) {
+    const syncTilt = () => {
+      const on = !!state.page.spotifyWidgetTilt;
+      tiltBtn.textContent = on ? '3D Tilt: ON' : '3D Tilt: OFF';
+      tiltBtn.classList.toggle('btn--active', on);
+    };
+    syncTilt();
+    tiltBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.spotifyWidgetTilt = !state.page.spotifyWidgetTilt;
+      syncTilt();
+      markPageModified();
     });
   }
 }
 
 function updatePublicSpotifyWidget() {
   const container = document.getElementById('spotify-widget-container');
-  const iframe = document.getElementById('spotify-player');
-  
-  if (!container || !iframe) return;
+  if (!container) return;
   
   const embedUrl = state.page.spotifyWidget && state.page.spotifyWidget.embedUrl;
-  const fullIframe = state.page.spotifyWidget && state.page.spotifyWidget.fullIframe;
+  const scale = state.page.spotifyWidgetScale ?? 1;
   
   if (embedUrl) {
-    if (fullIframe) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = fullIframe;
-      const newIframe = tempDiv.firstChild;
-      if (newIframe) {
-        container.replaceWith(newIframe);
-        newIframe.id = 'spotify-player';
-        newIframe.className = 'spotify-widget-container';
-        newIframe.style.display = 'block';
-        return;
-      }
-    }
-    iframe.src = embedUrl;
     container.style.display = 'block';
+    container.innerHTML = `
+      <div style="transform:scale(${scale});transform-origin:top left;width:100%;height:100%;">
+        <iframe id="spotify-player" src="${embedUrl}" style="width:100%;height:100%;border:none;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      </div>
+    `;
   } else {
     container.style.display = 'none';
+    container.innerHTML = '';
   }
 }
 
 function updatePreviewSpotifyWidget() {
     const container = document.getElementById('preview-spotify-widget-container');
-    const iframe = document.getElementById('preview-spotify-player');
-    if (!container || !iframe) return;
+    if (!container) return;
     const embedUrl = state.page.spotifyWidget && state.page.spotifyWidget.embedUrl;
-    const fullIframe = state.page.spotifyWidget && state.page.spotifyWidget.fullIframe;
+    const scale = state.page.spotifyWidgetScale ?? 1;
     if (embedUrl) {
-        if (fullIframe) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = fullIframe;
-            const newIframe = tempDiv.firstChild;
-            if (newIframe) {
-                container.replaceWith(newIframe);
-                newIframe.id = 'preview-spotify-player';
-                newIframe.className = 'spotify-widget-container';
-                newIframe.style.display = 'block';
-                return;
-            }
-        }
-        iframe.src = embedUrl;
         container.style.display = 'block';
+        container.innerHTML = `
+          <div style="transform:scale(${scale});transform-origin:top left;width:100%;height:100%;">
+            <iframe src="${embedUrl}" style="width:100%;height:100%;border:none;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+          </div>
+        `;
     } else {
         container.style.display = 'none';
+        container.innerHTML = '';
     }
 }
 
+/* Custom Player — setup */
+function setupCustomPlayer() {
+  const toggleBtn = document.getElementById('custom-player-toggle');
+  const controls = document.getElementById('custom-player-controls');
+  const titleInput = document.getElementById('custom-player-title');
+  const coverInput = document.getElementById('custom-player-cover-input');
+  const musicInput = document.getElementById('custom-player-music-input');
+  const volumeSlider = document.getElementById('custom-player-volume');
+  const volumeVal = document.getElementById('custom-player-volume-val');
+  const muteBtn = document.getElementById('custom-player-mute');
+  const scaleSlider = document.getElementById('custom-player-scale');
+  const bgColorInput = document.getElementById('custom-player-bgcolor');
+  const bgImageInput = document.getElementById('custom-player-bgimage-input');
+  const bgOpacitySlider = document.getElementById('custom-player-bgopacity');
+  const bgOpacityVal = document.getElementById('custom-player-bgopacity-val');
+  const deleteCoverBtn = document.getElementById('delete-player-cover-btn');
+  const deleteMusicBtn = document.getElementById('delete-player-music-btn');
+  const deleteBgImageBtn = document.getElementById('delete-player-bgimage-btn');
+  const bgImageDropzone = document.getElementById('custom-player-bgimage-dropzone');
+
+  const syncUI = () => {
+    const cp = state.page.customPlayer || {};
+    const enabled = cp.enabled;
+    if (toggleBtn) {
+      toggleBtn.textContent = enabled ? 'On' : 'Off';
+      toggleBtn.classList.toggle('btn--active', enabled);
+    }
+    if (controls) controls.style.display = enabled ? 'block' : 'none';
+    if (volumeSlider) volumeSlider.value = Math.round((cp.volume ?? 1) * 100);
+    if (volumeVal) volumeVal.textContent = `${Math.round((cp.volume ?? 1) * 100)}%`;
+    if (muteBtn) muteBtn.textContent = cp.muted ? 'Unmute' : 'Mute';
+    if (scaleSlider) scaleSlider.value = String(state.page.customPlayerScale ?? 1);
+    if (bgColorInput) bgColorInput.value = cp.bgColor || '#1a1a1a';
+    if (bgOpacitySlider) bgOpacitySlider.value = String(Math.round((cp.bgOpacity ?? 1) * 100));
+    if (bgOpacityVal) bgOpacityVal.textContent = `${Math.round((cp.bgOpacity ?? 1) * 100)}%`;
+    if (deleteCoverBtn) deleteCoverBtn.style.display = cp.cover ? '' : 'none';
+    if (deleteMusicBtn) deleteMusicBtn.style.display = cp.music ? '' : 'none';
+    if (deleteBgImageBtn) deleteBgImageBtn.style.display = cp.bgImage ? '' : 'none';
+  };
+  syncUI();
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.enabled = !state.page.customPlayer.enabled;
+      syncUI();
+      if (titleInput) titleInput.value = state.page.customPlayer?.title || '';
+      markPageModified();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  if (titleInput) {
+    titleInput.addEventListener('input', () => {
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.title = titleInput.value;
+      markPageModified();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  // Cover image upload
+  const coverDropzone = document.getElementById('custom-player-cover-dropzone');
+  if (coverDropzone) {
+    coverDropzone.addEventListener('click', () => {
+      coverInput && coverInput.click();
+    });
+  }
+  if (coverInput) {
+    coverInput.addEventListener('change', () => {
+      const file = coverInput.files && coverInput.files[0];
+      if (!file) return;
+      readFileAsDataURL(file).then(dataUrl => {
+        pushHistory();
+        state.page.customPlayer = state.page.customPlayer || {};
+        state.page.customPlayer.cover = dataUrl;
+        markPageModified();
+        syncUI();
+        updateCustomPlayerPreview();
+      });
+    });
+  }
+
+  // Delete cover
+  if (deleteCoverBtn) {
+    deleteCoverBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.cover = '';
+      markPageModified();
+      syncUI();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  // Music file upload
+  if (musicInput) {
+    musicInput.addEventListener('change', () => {
+      const file = musicInput.files && musicInput.files[0];
+      if (!file) return;
+      if (!file.type || !file.type.startsWith('audio/')) {
+        showToast('Please upload an audio file (mp3, wav, ogg...).');
+        return;
+      }
+      readFileAsDataURL(file).then(dataUrl => {
+        pushHistory();
+        state.page.customPlayer = state.page.customPlayer || {};
+        state.page.customPlayer.music = dataUrl;
+        // Create or replace audio element
+        let audio = document.getElementById('custom-player-audio');
+        if (!audio) {
+          audio = document.createElement('audio');
+          audio.id = 'custom-player-audio';
+          audio.loop = true;
+          audio.autoplay = true;
+          audio.addEventListener('loadedmetadata', () => {
+            document.querySelectorAll('.cpw-duration').forEach(el => { el.textContent = formatTime(audio.duration); });
+          });
+          audio.addEventListener('timeupdate', () => {
+            const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+            document.querySelectorAll('.cpw-progress-bar').forEach(el => el.style.width = `${pct}%`);
+            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = audio.paused ? '▶' : '⏸'; });
+            document.querySelectorAll('.cpw-time').forEach(el => { el.textContent = formatTime(audio.currentTime); });
+            document.querySelectorAll('.cpw-duration').forEach(el => { el.textContent = formatTime(audio.duration); });
+          });
+          audio.addEventListener('play', () => {
+            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '⏸'; });
+          });
+          audio.addEventListener('pause', () => {
+            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '▶'; });
+          });
+          document.body.appendChild(audio);
+        }
+        audio.src = dataUrl;
+        audio.volume = state.page.customPlayer.volume ?? 1;
+        audio.muted = state.page.customPlayer.muted ?? false;
+        markPageModified();
+        syncUI();
+        updateCustomPlayerPreview();
+      });
+    });
+  }
+
+  // Delete music
+  if (deleteMusicBtn) {
+    deleteMusicBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.music = '';
+      const audio = document.getElementById('custom-player-audio');
+      if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
+      markPageModified();
+      syncUI();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', () => {
+      const vol = Number(volumeSlider.value) / 100;
+      const audio = document.getElementById('custom-player-audio');
+      if (audio) audio.volume = vol;
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.volume = vol;
+      if (volumeVal) volumeVal.textContent = `${volumeSlider.value}%`;
+      markPageModified();
+    });
+  }
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', () => {
+      const audio = document.getElementById('custom-player-audio');
+      const newMuted = !(audio?.muted);
+      if (audio) audio.muted = newMuted;
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.muted = newMuted;
+      muteBtn.textContent = newMuted ? 'Unmute' : 'Mute';
+      markPageModified();
+    });
+  }
+
+  // Size slider
+  if (scaleSlider) {
+    scaleSlider.addEventListener('input', () => {
+      pushHistory();
+      state.page.customPlayerScale = Number(scaleSlider.value);
+      markPageModified();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  // Background color
+  if (bgColorInput) {
+    bgColorInput.addEventListener('input', () => {
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.bgColor = bgColorInput.value;
+      markPageModified();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  // Background image upload
+  if (bgImageDropzone) {
+    bgImageDropzone.addEventListener('click', () => {
+      bgImageInput && bgImageInput.click();
+    });
+  }
+  if (bgImageInput) {
+    bgImageInput.addEventListener('change', () => {
+      const file = bgImageInput.files && bgImageInput.files[0];
+      if (!file) return;
+      readFileAsDataURL(file).then(dataUrl => {
+        pushHistory();
+        state.page.customPlayer = state.page.customPlayer || {};
+        state.page.customPlayer.bgImage = dataUrl;
+        markPageModified();
+        syncUI();
+        updateCustomPlayerPreview();
+      });
+    });
+  }
+
+  // Delete background image
+  if (deleteBgImageBtn) {
+    deleteBgImageBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.bgImage = '';
+      markPageModified();
+      syncUI();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  // Background opacity
+  if (bgOpacitySlider && bgOpacityVal) {
+    bgOpacitySlider.addEventListener('input', () => {
+      const val = Number(bgOpacitySlider.value) / 100;
+      pushHistory();
+      state.page.customPlayer = state.page.customPlayer || {};
+      state.page.customPlayer.bgOpacity = val;
+      bgOpacityVal.textContent = `${bgOpacitySlider.value}%`;
+      markPageModified();
+      updateCustomPlayerPreview();
+    });
+  }
+
+  // Custom player 3D tilt toggle
+  const tiltBtn = document.getElementById('custom-player-tilt-toggle');
+  if (tiltBtn) {
+    const syncTilt = () => {
+      const on = !!state.page.customPlayerTilt;
+      tiltBtn.textContent = on ? '3D Tilt: ON' : '3D Tilt: OFF';
+      tiltBtn.classList.toggle('btn--active', on);
+    };
+    syncTilt();
+    tiltBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.customPlayerTilt = !state.page.customPlayerTilt;
+      syncTilt();
+      markPageModified();
+    });
+  }
+}
+function formatTime(seconds) {
+  if (!seconds || !isFinite(seconds)) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function renderCustomPlayerHTML(cp) {
+  const hasCover = cp.cover && cp.cover.length > 0;
+  const hasTitle = cp.title && cp.title.length > 0;
+  const hasBgImage = cp.bgImage && cp.bgImage.length > 0;
+  const bgColor = cp.bgColor || '#1a1a1a';
+  const bgOpacity = cp.bgOpacity != null ? cp.bgOpacity : 1;
+  let bgStyle = `background-color:${bgColor}`;
+  if (hasBgImage) {
+    bgStyle += `;background-image:url('${cp.bgImage}')`;
+    bgStyle += `;background-size:cover;background-position:center`;
+  }
+  const volPct = Math.round((cp.volume ?? 1) * 100);
+  return `
+    <div class="cpw-inner" style="position:relative;">
+      <div class="cpw-bg-layer" style="${bgStyle};opacity:${bgOpacity};"></div>
+      ${hasCover ? `<div class="cpw-cover" style="background-image:url('${cp.cover}');background-size:cover;background-position:center;"></div>` : ''}
+      <div class="cpw-body">
+        ${hasTitle ? `<div class="cpw-title">${escapeHtml(cp.title)}</div>` : ''}
+        <div class="cpw-controls">
+          <button class="cpw-prev-btn" data-action="cp-prev">⏮</button>
+          <button class="cpw-play-btn" data-action="cp-toggle">▶</button>
+          <button class="cpw-next-btn" data-action="cp-next">⏭</button>
+          <div class="cpw-progress-wrap">
+            <div class="cpw-progress-bar" id="cp-progress"></div>
+          </div>
+          <span class="cpw-time">0:00</span>
+          <span class="cpw-duration">0:00</span>
+        </div>
+      </div>
+      <div class="cpw-volume">
+        <span class="cpw-vol-icon">🔊</span>
+        <div class="cpw-volume-slider-wrap">
+          <input type="range" class="cpw-volume-slider" min="0" max="100" value="${volPct}" />
+        </div>
+        <span class="cpw-vol-pct">${volPct}%</span>
+      </div>
+    </div>
+  `;
+}
+
+function updateCustomPlayerPreview() {
+  const container = document.getElementById('preview-custom-player-widget-container');
+  if (!container) return;
+  const cp = state.page.customPlayer || {};
+  if (!cp.enabled) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  const scale = state.page.customPlayerScale ?? 1;
+  container.innerHTML = `
+    <div style="transform:scale(${scale});transform-origin:top left;width:100%;height:100%;">
+      ${renderCustomPlayerHTML(cp)}
+    </div>
+  `;
+}
+
+function renderPublicCustomPlayer() {
+  const container = document.getElementById('custom-player-widget-container');
+  if (!container) return;
+  const cp = state.page.customPlayer || {};
+  if (!cp.enabled) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+  container.style.display = 'block';
+  container.style.backgroundColor = 'transparent';
+  const scale = state.page.customPlayerScale ?? 1;
+  container.innerHTML = `
+    <div style="transform:scale(${scale});transform-origin:top left;width:100%;height:100%;">
+      ${renderCustomPlayerHTML(cp)}
+    </div>
+  `;
+
+  const cte = state.page.clickToEnter;
+  const hasClickToEnter = cte && (cte.enabled === true || cte === true);
+  let audio = document.getElementById('custom-player-audio');
+  if (!audio) {
+    audio = document.createElement('audio');
+    audio.id = 'custom-player-audio';
+    audio.loop = true;
+    if (!hasClickToEnter) audio.autoplay = true;
+    audio.addEventListener('timeupdate', () => {
+      const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+      document.querySelectorAll('.cpw-progress-bar').forEach(el => el.style.width = `${pct}%`);
+      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = audio.paused ? '▶' : '⏸'; });
+      document.querySelectorAll('.cpw-time').forEach(el => { el.textContent = formatTime(audio.currentTime); });
+      document.querySelectorAll('.cpw-duration').forEach(el => { el.textContent = formatTime(audio.duration); });
+    });
+    audio.addEventListener('loadedmetadata', () => {
+      document.querySelectorAll('.cpw-duration').forEach(el => { el.textContent = formatTime(audio.duration); });
+    });
+    audio.addEventListener('play', () => {
+      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '⏸'; });
+    });
+    audio.addEventListener('pause', () => {
+      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '▶'; });
+    });
+    document.body.appendChild(audio);
+  }
+  if (cp.music) {
+    audio.src = cp.music;
+    audio.volume = cp.volume ?? 1;
+    audio.muted = cp.muted ?? false;
+  }
+}
 /* ================================================
     BUILDER — sidebar panels
     ================================================ */
@@ -1634,6 +2537,7 @@ function setupAvatarUpload() {
     }
   };
   updateAvatarUI();
+  window.__updateAvatarUI = updateAvatarUI;
 
   input.addEventListener('change', () => {
     const file = input.files && input.files[0];
@@ -1846,31 +2750,114 @@ const serviceIcons = {
   onlyfans: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M23.924 11.34c-.14-.46-.7-.68-1.08-.53a9.43 9.43 0 0 0-.65-.22c-.39-.11-.76-.17-1.14-.22-1.12-.13-2.25-.19-3.37-.17-1.77.02-3.53.28-5.16.99-.32.14-.53.46-.5.81.03.35.27.64.61.68.34.04.68.04 1.02.05.83 0 1.67.03 2.49.22 1.1.25 2.19.58 3.18 1.11.23.13.39.34.56.52-.3-.06-.6-.13-.89-.19l-.89-.18a9.74 9.74 0 0 1-2.73-.9c-.33-.18-.65-.37-.93-.61-.08-.08-.18-.15-.21-.26-.05-.15-.03-.33.02-.48.07-.25.25-.45.49-.56.48-.22.98-.32 1.49-.33 1.37-.04 2.74.11 4.07.43.65.16 1.28.36 1.91.59.47.17.88.5 1.09.96.21.47.16 1.01-.11 1.44-.27.42-.69.72-1.16.87-.47.14-.97.16-1.46.17-.84.02-1.67-.04-2.5-.17-.37-.06-.74-.14-1.1-.24-.23-.06-.46-.13-.7-.19a7.67 7.67 0 0 1-2.32-1.03c-.33-.22-.63-.48-.88-.78-.11-.13-.21-.27-.26-.43-.07-.2-.03-.42.1-.6.14-.17.34-.28.56-.3.41-.05.82 0 1.23.04.55.05 1.09.14 1.63.27.84.2 1.67.42 2.5.65 1.1.3 2.19.62 3.26 1 .41.15.83.29 1.25.4.25.06.51.12.77.12.35 0 .69-.09.99-.27.3-.18.51-.45.6-.78.09-.33.04-.69-.13-.99z"/></svg>`,
   patreon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.386.524c-4.764 0-4.914.013-6.326.1-2.85.17-4.068.968-4.803 3.149-.548 1.624-.764 3.451-.776 6.571-.013 3.644.19 5.731.776 7.49.735 2.202 2.08 3.267 5.228 3.385 1.372.052 1.73.07 6.326.07 4.595 0 4.953-.018 6.325-.07 3.15-.118 4.49-1.183 5.23-3.385.585-1.759.79-3.846.776-7.49-.012-3.12-.228-4.947-.776-6.57-.737-2.18-1.956-2.98-4.804-3.15C20.3.538 20.15.526 15.386.526zm5.95 8.745c-1.37.65-3.477 1.31-6.02 1.31-2.528 0-4.636-.66-6.017-1.31C6.65 8.66 5.63 9.62 5.05 10.73c-.64 1.22-.97 2.84-.97 4.8 0 .37.03.74.08 1.1.21 1.52.97 2.68 2.25 3.47.86.53 1.95 1.02 3.21 1.5.63.24 1.34.51 1.86.76.64.31 1.02.77 1.03 1.25 0 .52-.46.97-1.2 1.2-1.04.32-2.8.67-5.13 1.05-.76.13-1.57.27-2.2.38-.7.13-1.22.5-1.37.98-.21.69.02 1.25.66 1.61.61.35 1.77.62 3.12.9 1.5.3 3.4.58 4.9 1.06 3.02.96 4.84 2.77 5.45 5.41.15.65.19 1.39.19 2.05 0 1.06-.2 2.16-.45 2.95-.38 1.2-.99 1.83-2.17 2.24-.79.28-1.72.4-3.22.4-2.08 0-2.8-.08-5.2-.42-1.24-.18-2.37-.24-3.4-.24-1.28 0-2.08.06-3.18.24-2.4.34-3.12.42-5.2.42-1.5 0-2.43-.12-3.22-.4-1.18-.41-1.79-1.04-2.17-2.24-.25-.79-.45-1.89-.45-2.95 0-.66.04-1.4.19-2.05.61-3.64 2.43-5.45 5.45-5.41 1.5-.48 3.4-.76 4.9-1.06 1.35-.28 2.51-.55 3.12-.9.64-.36.87-.92.66-1.61-.15-.48-.67-.85-1.37-.98-.63-.11-1.44-.25-2.2-.38-2.33-.38-4.09-.73-5.13-1.05-.74-.23-1.2-.68-1.2-1.2.01-.48.39-.94 1.03-1.25.52-.25 1.23-.52 1.86-.76 1.26-.48 2.35-.97 3.21-1.5 1.28-.79 2.04-1.95 2.25-3.47.05-.36.08-.73.08-1.1 0-1.96-.33-3.58-.97-4.8-.58-1.11-1.6-2.07-3.24-2.46z"/></svg>`,
   busty: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c-1.77 0-3.2-1.43-3.2-3.2S10.23 7.6 12 7.6s3.2 1.43 3.2 3.2S13.77 14 12 14zm0-5.4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm7.5 13.4c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm-15 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm8.5-6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm-4.5-4c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>`,
+  snapchat: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5.5 13.5c-.3.3-.7.5-1.1.5h-.4c-.4 0-.8.3-.9.7-.2.7-.7 1.3-1.5 1.5-.5.1-1 .1-1.5 0-.8-.2-1.3-.8-1.5-1.5-.1-.4-.5-.7-.9-.7h-.4c-.4 0-.8-.2-1.1-.5-.3-.3-.5-.7-.5-1.1s.2-.8.5-1.1c.4-.4.4-1 .1-1.5-.5-.7-.6-1.5-.4-2.3.1-.5.4-.9.7-1.2.3-.3.8-.6 1.2-.7.3-.1.5-.3.6-.6.2-.7.8-1.2 1.5-1.3.4-.1.9-.1 1.3 0 .7.1 1.3.6 1.5 1.3.1.3.3.5.6.6.5.1.9.4 1.2.7.3.3.6.7.7 1.2.2.8.1 1.6-.4 2.3-.3.5-.3 1.1.1 1.5.3.3.5.7.5 1.1s-.2.8-.5 1.1z"/></svg>`,
+  paypal: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106z"/></svg>`,
+  roblox: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 4.5L12 2 4.5 4.5 2 12l2.5 7.5L12 22l7.5-2.5L22 12l-2.5-7.5zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/></svg>`,
+  cashapp: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M23.42 11.16L12.84.58c-.32-.32-.84-.32-1.16 0L.58 11.16c-.32.32-.32.84 0 1.16l10.58 10.58c.32.32.84.32 1.16 0L23.42 12.32c.32-.32.32-.84 0-1.16zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>`,
+  venmo: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 3H4.5C3.12 3 2 4.12 2 5.5v13C2 19.88 3.12 21 4.5 21h15c1.38 0 2.5-1.12 2.5-2.5v-13C22 4.12 20.88 3 19.5 3zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>`,
+  playstation: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="white">PS</text></svg>`,
+  xbox: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="white">X</text></svg>`,
+  applemusic: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm5-9l-5 1.5v5.4c-.3-.1-.6-.2-1-.2-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2V7.5l5-1.5v3.4c-.3-.1-.6-.2-1-.2-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2V5.5z"/></svg>`,
+  yandexmusic: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="white">YM</text></svg>`,
+  gitlab: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="white">GL</text></svg>`,
+  reddit: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="white">RD</text></svg>`,
+  tellonym: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="8" font-weight="bold" fill="white">TL</text></svg>`,
+  bluesky: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="white">BS</text></svg>`,
+  steam: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="white">ST</text></svg>`,
+  kick: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="white">K</text></svg>`,
+  lastfm: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="8" font-weight="bold" fill="white">LF</text></svg>`,
+  payhip: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="8" font-weight="bold" fill="white">PH</text></svg>`,
+  buymeacoffee: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="7" font-weight="bold" fill="white">BMC</text></svg>`,
+  kofi: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="white">KF</text></svg>`,
+  btc: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.06 11.22c.5-.33.87-.8 1.01-1.44.25-1.14-.42-2.14-1.35-2.58.33-.51.46-1.08.32-1.7-.21-.96-.95-1.57-1.88-1.8-.71-.18-1.44-.14-2.16-.17V2h-1.5v1.5h-1V2h-1.5v1.5H7.5v2.5h.72c.4 0 .71.05.71.47v6.07c0 .36-.26.46-.67.46H7.5v2.5h2.4V18h1.5v-1.5h1V18h1.5v-1.56c1.03-.05 2.03-.21 2.93-.73.7-.4 1.27-1 1.47-1.78.2-.75.03-1.46-.44-2.01.17-.1.33-.21.47-.34l.33-.36zm-1.45-4.2c0 1.05-.84 1.24-1.8 1.24h-2.04V6.21h2.04c.96 0 1.8.17 1.8 1.21v.6zm-.48 5.56c0 1.1-.83 1.4-1.92 1.4h-1.44v-2.8h1.44c1.1 0 1.92.22 1.92 1.33v.07z"/></svg>`,
+  eth: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11.98 2L6 13.31l5.98 3.33L18 13.3 11.98 2zM6 14.7l5.98 8.77 5.99-8.77-5.99 3.34L6 14.7z"/></svg>`,
+  solana: `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M16.3 7.6c-.2.2-.5.3-.8.3H3.9c-.5 0-.7-.6-.4-.9l2.2-2.2c.2-.2.5-.3.8-.3h11.6c.5 0 .7.6.4.9l-2.2 2.2zM3.9 12.1h11.6c.3 0 .6.1.8.3l2.2 2.2c.3.3.1.9-.4.9H6.5c-.3 0-.6-.1-.8-.3l-2.2-2.2c-.3-.3-.1-.9.4-.9zM16.3 16.7c-.2.2-.5.3-.8.3H3.9c-.5 0-.7.6-.4.9l2.2 2.2c.2.2.5.3.8.3h11.6c.5 0 .7-.6.4-.9l-2.2-2.2z"/></svg>`,
 };
 
 function detectServiceFromUrl(url) {
   if (!url) return null;
-  const urlLower = url.toLowerCase();
-  if (urlLower.includes('instagram.com')) return 'instagram';
-  if (urlLower.includes('x.com')) return 'x';
-  if (urlLower.includes('twitter.com')) return 'twitter';
-  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'youtube';
-  if (urlLower.includes('tiktok.com')) return 'tiktok';
-  if (urlLower.includes('discord.gg') || urlLower.includes('discord.com')) return 'discord';
-  if (urlLower.includes('t.me') || urlLower.includes('telegram.me')) return 'telegram';
-  if (urlLower.includes('spotify.com')) return 'spotify';
-  if (urlLower.includes('soundcloud.com')) return 'soundcloud';
-  if (urlLower.includes('linkedin.com')) return 'linkedin';
-  if (urlLower.includes('github.com') || urlLower.includes('github.io')) return 'github';
-  if (urlLower.includes('twitch.tv')) return 'twitch';
-  if (urlLower.includes('whatsapp.com') || urlLower.includes('wa.me')) return 'whatsapp';
-  if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'facebook';
-  if (urlLower.includes('vk.com') || urlLower.includes('vkontakte.ru')) return 'vk';
-  if (urlLower.includes('pinterest.com') || urlLower.includes('pin.it')) return 'pinterest';
-  if (urlLower.includes('onlyfans.com')) return 'onlyfans';
-  if (urlLower.includes('patreon.com')) return 'patreon';
-  if (urlLower.includes('busty.com') || urlLower.includes('busty.org')) return 'busty';
+  const u = url.toLowerCase();
+  if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
+  if (u.includes('instagram.com')) return 'instagram';
+  if (u.includes('tiktok.com')) return 'tiktok';
+  if (u.includes('discord.gg') || u.includes('discord.com') || u.includes('discordapp.com')) return 'discord';
+  if (u.includes('t.me') || u.includes('telegram.me') || u.includes('telegram.org')) return 'telegram';
+  if (u.includes('spotify.com') || u.includes('spotify.link') || u.includes('open.spotify.com')) return 'spotify';
+  if (u.includes('soundcloud.com') || u.includes('snd.sc')) return 'soundcloud';
+  if (u.includes('linkedin.com')) return 'linkedin';
+  if (u.includes('github.com') || u.includes('github.io')) return 'github';
+  if (u.includes('twitch.tv')) return 'twitch';
+  if (u.includes('whatsapp.com') || u.includes('wa.me')) return 'whatsapp';
+  if (u.includes('facebook.com') || u.includes('fb.com')) return 'facebook';
+  if (u.includes('vk.com') || u.includes('vkontakte.ru')) return 'vk';
+  if (u.includes('pinterest.com') || u.includes('pin.it') || u.includes('pinterest.co.uk') || u.includes('pinterest.fr') || u.includes('pinterest.de')) return 'pinterest';
+  if (u.includes('onlyfans.com')) return 'onlyfans';
+  if (u.includes('patreon.com')) return 'patreon';
+  if (u.includes('busty.com') || u.includes('busty.org')) return 'busty';
+  if (u.includes('twitter.com')) return 'twitter';
+  if (u.includes('x.com')) return 'x';
+  if (u.includes('snapchat.com') || u.includes('snapchat')) return 'snapchat';
+  if (u.includes('paypal.com') || u.includes('paypal.me')) return 'paypal';
+  if (u.includes('roblox.com')) return 'roblox';
+  if (u.includes('cash.app') || u.includes('cashapp.com')) return 'cashapp';
+  if (u.includes('venmo.com') || u.includes('venmo')) return 'venmo';
+  if (u.includes('playstation.com') || u.includes('store.playstation.com')) return 'playstation';
+  if (u.includes('xbox.com') || u.includes('xbox')) return 'xbox';
+  if (u.includes('music.apple.com')) return 'applemusic';
+  if (u.includes('music.yandex.com') || u.includes('music.yandex.ru') || u.includes('music.yandex.by') || u.includes('music.yandex.kz')) return 'yandexmusic';
+  if (u.includes('gitlab.com')) return 'gitlab';
+  if (u.includes('reddit.com') || u.includes('redd.it')) return 'reddit';
+  if (u.includes('tellonym.me')) return 'tellonym';
+  if (u.includes('bsky.app') || u.includes('bluesky.social')) return 'bluesky';
+  if (u.includes('steamcommunity.com') || u.includes('store.steampowered.com') || u.includes('steampowered.com')) return 'steam';
+  if (u.includes('kick.com') || u.includes('kick')) return 'kick';
+  if (u.includes('last.fm')) return 'lastfm';
+  if (u.includes('payhip.com')) return 'payhip';
+  if (u.includes('buymeacoffee.com')) return 'buymeacoffee';
+  if (u.includes('ko-fi.com') || u.includes('kofi.com') || u.includes('ko-fi')) return 'kofi';
   return null;
+}
+
+function normalizeUrl(url) {
+  if (!url) return '#';
+  const trimmed = url.trim();
+  if (!trimmed) return '#';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('//')) return trimmed;
+  return 'https://' + trimmed;
+}
+
+function getCopyServiceIcon(copyIcon, hex) {
+  if (!copyIcon) return '';
+  let svg = svgFileCache[copyIcon];
+  if (svg && svg.includes('<svg')) {
+    if (hex) {
+      return svg.replace(/fill="[^"]*"/g, `fill="${hex}"`);
+    }
+    return svg;
+  }
+  svg = serviceIcons[copyIcon];
+  if (svg && svg.includes('<svg')) {
+    if (hex) {
+      return svg.replace(/fill="[^"]*"/g, `fill="${hex}"`);
+    }
+    return svg;
+  }
+  return '';
+}
+
+const svgFileCache = {};
+const socialFileServices = ['instagram','youtube','tiktok','discord','onlyfans','x','twitter','telegram','spotify','soundcloud','linkedin','github','twitch','whatsapp','facebook','vk','pinterest','patreon','busty','snapchat','paypal','roblox','cashapp','venmo','playstation','xbox','applemusic','yandexmusic','gitlab','reddit','tellonym','bluesky','steam','kick','lastfm','payhip','buymeacoffee','kofi','btc','eth','solana'];
+const iconColorMap = { white: '#fff', black: '#000', red: '#ff3232', blue: '#3282ff', gold: '#ffd700', green: '#32c864', pink: '#ff50b4', purple: '#a050ff' };
+
+async function preloadSocialSvg(service) {
+  try {
+    const res = await fetch(`/Badges/SocialMediaicons/${service}.svg`);
+    if (res.ok) svgFileCache[service] = await res.text();
+  } catch {}
+}
+
+function preloadAllSocialSvgs() {
+  return Promise.all(socialFileServices.map(s => preloadSocialSvg(s)));
 }
 
 function getServiceIconContent(url, fallbackEmoji) {
@@ -1881,14 +2868,38 @@ function getServiceIconContent(url, fallbackEmoji) {
   return fallbackEmoji || '🔗';
 }
 
+function getColoredServiceIcon(url, fallbackEmoji) {
+  const service = detectServiceFromUrl(url);
+  const colorName = state.page.iconsColorName;
+  const hex = colorName ? (iconColorMap[colorName] || '') : '';
+
+  if (service && socialFileServices.includes(service)) {
+    const cached = svgFileCache[service];
+    if (cached && cached.includes('<svg')) {
+      if (hex) {
+        return cached.replace(/fill="[^"]*"/g, `fill="${hex}"`);
+      }
+      return cached;
+    }
+  }
+
+  const svg = getServiceIconContent(url, fallbackEmoji);
+  if (hex && svg && svg.includes('<svg')) {
+    return svg.replace(/fill="[^"]*"/g, `fill="${hex}"`);
+  }
+  return svg;
+}
+
 /* ================================================
    LINKS
    ================================================ */
 let editingLinkIndex = -1; // -1 = adding new, >= 0 = editing link at this index
+let currentLinkIcon = null; // dataURL or URL string for custom link icon
 
 function setupLinks() {
-  // Links toggle button
   const toggleBtn = document.getElementById('links-toggle-btn');
+  if (!toggleBtn) return;
+
   const controlsDiv = document.getElementById('links-controls');
   if (toggleBtn) {
     const updateToggleState = () => {
@@ -1912,7 +2923,7 @@ function setupLinks() {
 
   document.querySelector('[data-action="add-link"]').addEventListener('click', saveLink);
 
-  // Allow enter in label input to save
+  // Allow enter in label and url/wallet inputs to save
   document.getElementById('link-label').addEventListener('keydown', e => {
     if (e.key === 'Enter') saveLink();
   });
@@ -1968,19 +2979,182 @@ function setupLinks() {
       }
     });
   }
+
+  // Link icon scale slider
+  const linkScaleSlider = document.getElementById('link-icon-scale');
+  const linkScaleVal = document.getElementById('link-icon-scale-val');
+  if (linkScaleSlider) {
+    linkScaleSlider.value = String(state.page.linkIconScale ?? 1);
+    if (linkScaleVal) linkScaleVal.textContent = `${state.page.linkIconScale ?? 1}×`;
+    linkScaleSlider.addEventListener('input', () => {
+      pushHistory();
+      state.page.linkIconScale = Number(linkScaleSlider.value);
+      if (linkScaleVal) linkScaleVal.textContent = `${state.page.linkIconScale}×`;
+      renderPreviewLinks();
+      updatePublicPage();
+    });
+  }
+
+  // Link type selector (url / copy)
+  const linkTypeBtn = document.getElementById('link-type-btn');
+  const linkTypeOptions = document.getElementById('link-type-options');
+  const linkUrlInput = document.getElementById('link-url');
+
+  if (linkTypeBtn && linkTypeOptions) {
+    linkTypeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      linkTypeOptions.style.display = linkTypeOptions.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    linkTypeOptions.querySelectorAll('.link-type-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const type = opt.dataset.type;
+        const copyIcon = opt.dataset.copyIcon || '';
+        linkTypeBtn.dataset.linkType = type;
+        linkTypeBtn.dataset.copyIcon = copyIcon;
+        if (type === 'copy') {
+          linkTypeBtn.innerHTML = `<span id="link-type-btn-text">${opt.textContent.trim().split(' ')[0]}</span>`;
+          if (linkUrlInput) {
+            linkUrlInput.placeholder = 'Wallet address...';
+            linkUrlInput.type = 'text';
+          }
+        } else {
+          linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+          if (linkUrlInput) {
+            linkUrlInput.placeholder = 'https://...';
+            linkUrlInput.type = 'url';
+          }
+        }
+        linkTypeOptions.style.display = 'none';
+      });
+    });
+
+    document.addEventListener('click', () => {
+      if (linkTypeOptions) linkTypeOptions.style.display = 'none';
+    });
+  }
+}
+
+function updateLinkIconPreview() {
+  const preview = document.getElementById('link-icon-preview');
+  const deleteBtn = document.getElementById('delete-link-icon-btn');
+  const uploadTitle = document.getElementById('link-icon-upload-title');
+  if (!preview) return;
+  if (currentLinkIcon) {
+    preview.src = currentLinkIcon;
+    preview.style.display = '';
+    if (deleteBtn) deleteBtn.style.display = '';
+    if (uploadTitle) uploadTitle.textContent = 'Change icon';
+  } else {
+    preview.src = '';
+    preview.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    if (uploadTitle) uploadTitle.textContent = 'Upload PNG/GIF';
+  }
+}
+
+function clearLinkIconUI() {
+  currentLinkIcon = null;
+  const fileInput = document.getElementById('link-icon-file-input');
+  const urlInput = document.getElementById('link-icon-url');
+  if (fileInput) fileInput.value = '';
+  if (urlInput) urlInput.value = '';
+  updateLinkIconPreview();
+}
+
+function setupLinkIcons() {
+  const fileInput = document.getElementById('link-icon-file-input');
+  const urlInput = document.getElementById('link-icon-url');
+  const urlBtn = document.getElementById('link-icon-url-btn');
+  const uploadBox = document.getElementById('link-icon-upload-box');
+  const deleteBtn = document.getElementById('delete-link-icon-btn');
+  const preview = document.getElementById('link-icon-preview');
+
+  // File upload handler
+  if (fileInput) {
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      if (!file.type || (file.type !== 'image/png' && file.type !== 'image/gif')) {
+        showToast('Please upload a PNG or GIF image');
+        return;
+      }
+      const maxBytes = 2 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        showToast('Image is too large (max 2 MB)');
+        return;
+      }
+      readFileAsDataURL(file)
+        .then((dataUrl) => {
+          currentLinkIcon = String(dataUrl || '');
+          updateLinkIconPreview();
+          showToast('Icon set');
+        })
+        .catch(() => {
+          showToast('Could not read this file');
+        });
+      fileInput.value = '';
+    });
+  }
+
+  if (uploadBox && fileInput) {
+    uploadBox.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') fileInput.click();
+    });
+  }
+
+  // URL button handler
+  if (urlBtn && urlInput) {
+    urlBtn.addEventListener('click', () => {
+      const val = urlInput.value.trim();
+      if (!val) return;
+      currentLinkIcon = val;
+      updateLinkIconPreview();
+      showToast('Icon URL set');
+    });
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') urlBtn.click();
+    });
+  }
+
+  // Delete button handler
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      currentLinkIcon = null;
+      if (urlInput) urlInput.value = '';
+      if (fileInput) fileInput.value = '';
+      updateLinkIconPreview();
+      showToast('Icon removed');
+    });
+  }
+
+  clearLinkIconUI();
 }
 
 function cancelLinkEdit() {
   editingLinkIndex = -1;
+  currentLinkIcon = null;
   document.getElementById('link-label').value = '';
-  document.getElementById('link-emoji').value = '';
   document.getElementById('link-url').value = '';
+  
+  const linkTypeBtn = document.getElementById('link-type-btn');
+  if (linkTypeBtn) {
+    linkTypeBtn.dataset.linkType = 'url';
+    linkTypeBtn.dataset.copyIcon = '';
+    linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+  }
+  const urlInput = document.getElementById('link-url');
+  if (urlInput) {
+    urlInput.placeholder = 'https://...';
+    urlInput.type = 'url';
+  }
   
   // Reset style buttons to default
   document.querySelectorAll('.link-style-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.linkStyle === 'full');
   });
   
+  clearLinkIconUI();
   updateLinkFormState();
   renderLinksList();
 }
@@ -2005,8 +3179,36 @@ function startEditLink(index) {
   if (!link) return;
   editingLinkIndex = index;
   document.getElementById('link-label').value = link.label || '';
-  document.getElementById('link-emoji').value = link.emoji === '🔗' ? '' : link.emoji;
-  document.getElementById('link-url').value = link.url || '';
+
+  const linkTypeBtn = document.getElementById('link-type-btn');
+  const linkUrlInput = document.getElementById('link-url');
+  const linkType = link.type || 'url';
+
+  if (linkType === 'copy') {
+    if (linkTypeBtn) {
+      linkTypeBtn.dataset.linkType = 'copy';
+      linkTypeBtn.dataset.copyIcon = link.copyIcon || '';
+      const icons = { btc: '₿', eth: 'Ξ', solana: '◎' };
+      linkTypeBtn.innerHTML = `<span id="link-type-btn-text">${icons[link.copyIcon] || '◎'}</span>`;
+    }
+    if (linkUrlInput) {
+      linkUrlInput.placeholder = 'Wallet address...';
+      linkUrlInput.type = 'text';
+      linkUrlInput.value = link.copyText || '';
+    }
+  } else {
+    if (linkTypeBtn) {
+      linkTypeBtn.dataset.linkType = 'url';
+      linkTypeBtn.dataset.copyIcon = '';
+      const emoji = link.emoji === '🔗' ? '' : link.emoji;
+      linkTypeBtn.innerHTML = `<span id="link-type-btn-text">${emoji || '🔗'}</span>`;
+    }
+    if (linkUrlInput) {
+      linkUrlInput.placeholder = 'https://...';
+      linkUrlInput.type = 'url';
+      linkUrlInput.value = link.url || '';
+    }
+  }
   
   // Sync style buttons
   const linkStyle = link.style || 'full';
@@ -2025,6 +3227,10 @@ function startEditLink(index) {
     glowBtn.classList.toggle('btn-ghost', !isGlowOn);
   }
   
+  // Restore custom icon
+  currentLinkIcon = link.icon || null;
+  updateLinkIconPreview();
+
   document.getElementById('link-label').focus();
   updateLinkFormState();
   renderLinksList();
@@ -2032,11 +3238,12 @@ function startEditLink(index) {
 
 function saveLink() {
   const labelEl = document.getElementById('link-label');
-  const emojiEl = document.getElementById('link-emoji');
   const urlEl   = document.getElementById('link-url');
+  const linkTypeBtn = document.getElementById('link-type-btn');
 
   const label = labelEl.value.trim();
-  const emoji = emojiEl.value.trim() || '🔗';
+  const type = linkTypeBtn ? linkTypeBtn.dataset.linkType || 'url' : 'url';
+  const copyIcon = linkTypeBtn ? linkTypeBtn.dataset.copyIcon || '' : '';
   const url   = urlEl.value.trim();
   
   // Get current link style from active button
@@ -2049,18 +3256,29 @@ function saveLink() {
     return;
   }
 
+  if (type === 'copy' && !url) {
+    showToast('Enter a wallet address');
+    urlEl.focus();
+    return;
+  }
+
   const colorInput = document.getElementById('link-color');
   const glowBtn = document.getElementById('link-glow-btn');
   const linkColor = colorInput ? colorInput.value : '#d6d6d6';
   const linkGlow = glowBtn && glowBtn.textContent.includes('On');
 
+  const icon = currentLinkIcon || '';
+  const emoji = type === 'copy' ? '' : '🔗';
+  const linkUrl = type === 'url' ? url : '';
+  const copyText = type === 'copy' ? url : '';
+
   if (editingLinkIndex >= 0) {
     pushHistory();
-    state.page.links[editingLinkIndex] = { emoji, label, url, style: linkStyle, color: linkColor, glow: linkGlow };
+    state.page.links[editingLinkIndex] = { emoji, label, url: linkUrl, type, copyText, copyIcon, style: linkStyle, color: linkColor, glow: linkGlow, icon };
     editingLinkIndex = -1;
   } else {
     pushHistory();
-    state.page.links.push({ emoji, label, url, style: linkStyle, color: linkColor, glow: linkGlow });
+    state.page.links.push({ emoji, label, url: linkUrl, type, copyText, copyIcon, style: linkStyle, color: linkColor, glow: linkGlow, icon });
     ensureIndependentLinkLayouts();
     
     // Assign new link to active layer
@@ -2071,14 +3289,23 @@ function saveLink() {
   }
 
   labelEl.value = '';
-  emojiEl.value = '';
   urlEl.value   = '';
+
+  // Reset type button
+  if (linkTypeBtn) {
+    linkTypeBtn.dataset.linkType = 'url';
+    linkTypeBtn.dataset.copyIcon = '';
+    linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+  }
+  urlEl.placeholder = 'https://...';
+  urlEl.type = 'url';
 
   // Reset style buttons
   document.querySelectorAll('.link-style-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.linkStyle === 'full');
   });
 
+  clearLinkIconUI();
   updateLinkFormState();
   renderLinksList();
   renderPreviewLinks();
@@ -2091,9 +3318,16 @@ function removeLink(index) {
   // Adjust editing index if needed
   if (editingLinkIndex === index) {
     editingLinkIndex = -1;
+    currentLinkIcon = null;
     document.getElementById('link-label').value = '';
-    document.getElementById('link-emoji').value = '';
     document.getElementById('link-url').value = '';
+    const linkTypeBtn = document.getElementById('link-type-btn');
+    if (linkTypeBtn) {
+      linkTypeBtn.dataset.linkType = 'url';
+      linkTypeBtn.dataset.copyIcon = '';
+      linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+    }
+    clearLinkIconUI();
     updateLinkFormState();
   } else if (editingLinkIndex > index) {
     editingLinkIndex--;
@@ -2106,6 +3340,7 @@ function removeLink(index) {
 
 function renderLinksList() {
   const list = document.getElementById('links-list');
+  if (!list) return;
   list.innerHTML = '';
 
   if (state.page.links.length === 0) {
@@ -2116,8 +3351,18 @@ function renderLinksList() {
   state.page.links.forEach((link, i) => {
     const item = document.createElement('div');
     item.className = 'link-item' + (i === editingLinkIndex ? ' link-item--editing' : '');
+    let iconHtml;
+    if (link.icon && (link.icon.startsWith('data:') || link.icon.startsWith('http'))) {
+      iconHtml = `<img src="${link.icon}" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;">`;
+    } else if (link.type === 'copy') {
+      const icons = { btc: '₿', eth: 'Ξ', solana: '◎' };
+      iconHtml = `<span style="margin-right:4px;">${icons[link.copyIcon] || '◎'}</span>`;
+    } else {
+      iconHtml = link.emoji || '🔗';
+    }
+    const typeTag = link.type === 'copy' ? ' <span style="font-size:10px;color:var(--muted);">[copy]</span>' : '';
     item.innerHTML = `
-      <span class="link-item-label">${link.emoji} ${link.label}</span>
+      <span class="link-item-label">${iconHtml} ${link.label}${typeTag}</span>
       <button class="link-edit-btn" aria-label="Edit link ${link.label}" title="Edit">✏️</button>
       <button class="link-remove" aria-label="Remove link ${link.label}" title="Delete">×</button>
     `;
@@ -2181,7 +3426,13 @@ function renderPreviewLinks() {
     const key = `link-${i}`;
     const div = document.createElement('div');
     const isIconStyle = link.style === 'icon';
-    const serviceIcon = getServiceIconContent(link.url, link.emoji);
+    const colorName = state.page.iconsColorName;
+    const hex = colorName ? (iconColorMap[colorName] || '') : '';
+    const serviceIcon = link.type === 'copy'
+      ? getCopyServiceIcon(link.copyIcon, hex)
+      : getColoredServiceIcon(link.url, link.emoji);
+
+    const hasCustomIcon = link.icon && (link.icon.startsWith('data:') || link.icon.startsWith('http'));
 
     if (isIconStyle) {
       div.className = 'page-link-btn-icon editable mode-icon';
@@ -2207,8 +3458,18 @@ function renderPreviewLinks() {
     div.dataset.linkUrl = link.url || '';
     div.dataset.linkStyle = link.style || 'full';
     
-    if (isIconStyle) {
+    if (hasCustomIcon) {
+      const imgStyle = isIconStyle ? 'width:60%;height:60%;object-fit:contain;display:block;' : 'width:20px;height:20px;object-fit:contain;display:block;margin-right:8px;';
+      div.innerHTML = `<img src="${link.icon}" alt="" style="${imgStyle}">${isIconStyle ? '' : `<span class="link-label-text">${link.label || ''}</span>`}`;
+      if (!isIconStyle) {
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.justifyContent = 'center';
+      }
+    } else if (isIconStyle) {
       div.innerHTML = serviceIcon;
+    } else if (link.type === 'copy') {
+      div.innerHTML = `${serviceIcon}<span class="link-label-text">${link.label || ''}</span>`;
     } else {
       const service = detectServiceFromUrl(link.url);
       if (service) {
@@ -2225,6 +3486,14 @@ function renderPreviewLinks() {
 
   // Apply layout positions
   applyLinkLayouts();
+
+  // Apply link icon scale to icon-mode links
+  const scale = state.page.linkIconScale ?? 1;
+  if (scale !== 1) {
+    stageInner.querySelectorAll('.page-link-btn-icon.mode-icon').forEach(el => {
+      el.style.setProperty('--link-scale', String(scale));
+    });
+  }
 }
 
 function applyLinkLayouts() {
@@ -2492,13 +3761,14 @@ function applyPhoneBlur() {
       blurLayer.style.webkitBackdropFilter = `blur(${blurValue}px)`;
       blurLayer.style.borderRadius = `${radius}px`;
       
-      // Copy phone position and size
       const phone = stage.querySelector('.phone-frame');
+      const layout = state.page.layout?.phone;
       if (phone) {
-        blurLayer.style.left = phone.style.left;
-        blurLayer.style.top = phone.style.top;
-        blurLayer.style.width = phone.style.width;
-        blurLayer.style.height = phone.style.height;
+        blurLayer.style.left = phone.style.left || (layout ? `${layout.x}px` : '0px');
+        blurLayer.style.top = phone.style.top || (layout ? `${layout.y}px` : '0px');
+        blurLayer.style.width = phone.style.width || (layout ? `${layout.w}px` : '280px');
+        blurLayer.style.height = phone.style.height || (layout ? `${layout.h}px` : '560px');
+        blurLayer.style.transform = phone.style.transform || '';
       }
     } else {
       blurLayer.style.display = 'none';
@@ -2509,13 +3779,39 @@ function applyPhoneBlur() {
   if (publicStage) createOrUpdateBlurLayer(publicStage, true);
 }
 
+function setupBackgroundEffects() {
+  document.querySelectorAll('[data-bg-effect]').forEach(item => {
+    item.addEventListener('click', () => {
+      pushHistory();
+      document.querySelectorAll('[data-bg-effect]').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      state.page.bgEffect = item.dataset.bgEffect === 'none' ? null : item.dataset.bgEffect;
+      applyBackgroundEffect();
+      markPageModified();
+      updatePreview();
+      const pubScreen = document.getElementById('screen-public');
+      if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+    });
+  });
+}
+
+function applyBackgroundEffect() {
+  const effect = state.page.bgEffect;
+  ['preview-frame', 'public-frame'].forEach(frameId => {
+    const frame = document.getElementById(frameId);
+    if (!frame) return;
+    frame.classList.remove('bg-effect-crt', 'bg-effect-halftone');
+    if (effect === 'crt') frame.classList.add('bg-effect-crt');
+    else if (effect === 'halftone') frame.classList.add('bg-effect-halftone');
+  });
+}
+
 function applyBackgroundImages() {
-  // Global background (main background) should live INSIDE the preview frame (monitor),
-  // not on the whole builder area.
   const stageInner = document.getElementById('preview-stage-inner');
+  const stageEl = document.querySelector('.builder-preview');
   if (stageInner) {
     if (state.page.bgImageGlobal) {
-      stageInner.style.backgroundImage = `url("${state.page.bgImageGlobal}")`;
+      stageInner.style.backgroundImage = `url('${state.page.bgImageGlobal}')`;
       stageInner.style.backgroundSize = 'cover';
       stageInner.style.backgroundPosition = 'center';
       stageInner.style.backgroundRepeat = 'no-repeat';
@@ -2531,7 +3827,12 @@ function applyBackgroundImages() {
   const phoneBgLayer = document.querySelector('#preview-frame .phone-bg-layer');
   if (phoneBgLayer) {
     if (state.page.bgImagePhone) {
-      phoneBgLayer.style.backgroundImage = `url("${state.page.bgImagePhone}")`;
+      phoneBgLayer.style.backgroundImage = `url('${state.page.bgImagePhone}')`;
+      phoneBgLayer.style.backgroundSize = 'cover';
+      phoneBgLayer.style.backgroundPosition = 'center';
+      phoneBgLayer.style.backgroundRepeat = 'no-repeat';
+    } else if (state.page.bgImageGlobal) {
+      phoneBgLayer.style.backgroundImage = `url('${state.page.bgImageGlobal}')`;
       phoneBgLayer.style.backgroundSize = 'cover';
       phoneBgLayer.style.backgroundPosition = 'center';
       phoneBgLayer.style.backgroundRepeat = 'no-repeat';
@@ -2734,7 +4035,7 @@ function setupAccentColors() {
 function applyAccentColor(color) {
   // Change CSS variable on preview phone only (optional: whole page)
   const frame = document.getElementById('preview-frame');
-  frame.style.setProperty('--page-accent', color);
+  if (frame) frame.style.setProperty('--page-accent', color);
 
   // Tint link buttons with a subtle accent
   document.querySelectorAll('.page-link-btn').forEach(btn => {
@@ -2746,30 +4047,18 @@ function applyAccentColor(color) {
    FONT & TEXT
    ================================================ */
 function setupTextOptions() {
-  // Existing font option handling
-
-  // Font options
-  document.querySelectorAll('[data-font]').forEach(item => {
-    item.addEventListener('click', () => {
-      pushHistory();
-      document.querySelectorAll('[data-font]').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-
-      state.page.font = item.dataset.font;
-      document.getElementById('prev-name').style.fontFamily = `'${state.page.font}', sans-serif`;
-    });
-  });
-
-  // Name size slider
   const slider = document.getElementById('name-size-slider');
+  if (!slider) return;
+
   const val    = document.getElementById('name-size-val');
 
   slider.addEventListener('focus', () => pushHistory());
   slider.addEventListener('input', () => {
     const size = parseInt(slider.value, 10);
     state.page.nameSize = size;
-    val.textContent = size + 'px';
-    document.getElementById('prev-name').style.fontSize = size + 'px';
+    if (val) val.textContent = size + 'px';
+    const pn = document.getElementById('prev-name');
+    if (pn) pn.style.fontSize = size + 'px';
   });
 }
 
@@ -2913,6 +4202,152 @@ function setupProfileInputs() {
       updatePreview();
     });
   }
+
+  const fadeInToggle = document.getElementById('fade-in-toggle');
+  if (fadeInToggle) {
+    const syncFadeInUI = () => {
+      fadeInToggle.textContent = state.page.fadeIn ? 'On' : 'Off';
+      fadeInToggle.classList.toggle('btn--active', state.page.fadeIn);
+    };
+    syncFadeInUI();
+    fadeInToggle.addEventListener('click', () => {
+      pushHistory();
+      state.page.fadeIn = !state.page.fadeIn;
+      syncFadeInUI();
+      applyFadeIn();
+      markPageModified();
+      const pubScreen = document.getElementById('screen-public');
+      if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+    });
+  }
+
+  // Layers of page toggle — enables multi-floor mode
+  const layersToggle = document.getElementById('bio-layers-toggle');
+  const floorSwitcher = document.getElementById('floor-switcher');
+  if (layersToggle) {
+    const syncFloorsUI = () => {
+      const on = state.page.bioLayersEnabled;
+      layersToggle.textContent = on ? 'On' : 'Off';
+      layersToggle.classList.toggle('btn--active', on);
+      if (floorSwitcher) floorSwitcher.style.display = on ? '' : 'none';
+    };
+    syncFloorsUI();
+    layersToggle.addEventListener('click', () => {
+      pushHistory();
+      state.page.bioLayersEnabled = !state.page.bioLayersEnabled;
+      if (state.page.bioLayersEnabled) {
+        for (let i = 1; i <= 2; i++) {
+          getFloorData(i);
+        }
+        state.page.activeFloor = 0;
+      } else {
+        saveCurrentFloor();
+      }
+      syncFloorsUI();
+      renderFloorSwitcher();
+      updatePreview();
+      markPageModified();
+    });
+    if (state.page.bioLayersEnabled) renderFloorSwitcher();
+  }
+}
+
+function applyFadeIn() {
+  const previewInner = document.getElementById('preview-stage-inner');
+  const publicInner = document.querySelector('.public-stage-inner');
+
+  const regSelector = '.phone-frame, .page-avatar, .page-name, .page-bio, .page-link-btn, .page-link-btn-icon, .public-custom-object';
+  const widgetSelector = '.spotify-widget-container, .discord-widget-container, .custom-player-widget-container';
+  const allSelector = regSelector + ', ' + widgetSelector;
+
+  const animateEls = (els, delay) => {
+    els.forEach(el => {
+      el.getAnimations().forEach(a => a.cancel());
+      const anim = el.animate([
+        { opacity: 0, transform: 'translateY(-20px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ], {
+        duration: 500, easing: 'ease-out', fill: 'both', delay
+      });
+      anim.onfinish = () => {
+        el.style.opacity = '';
+        el.style.transform = '';
+        anim.cancel();
+      };
+    });
+  };
+
+  const startFade = (inner) => {
+    if (!inner) return;
+    const regular = inner.querySelectorAll(regSelector);
+    const widgets = inner.querySelectorAll(widgetSelector);
+    regular.forEach(el => {
+      el.dataset.savedTransition = el.style.transition || '';
+      el.style.transition = 'none';
+    });
+    widgets.forEach(el => {
+      el.dataset.savedTransition = el.style.transition || '';
+      el.style.transition = 'none';
+    });
+    regular.forEach(el => el.style.opacity = '0');
+    widgets.forEach(el => el.style.opacity = '0');
+    requestAnimationFrame(() => {
+      regular.forEach(el => {
+        el.style.transition = el.dataset.savedTransition || '';
+        delete el.dataset.savedTransition;
+      });
+      widgets.forEach(el => {
+        el.style.transition = el.dataset.savedTransition || '';
+        delete el.dataset.savedTransition;
+      });
+    });
+    if (regular.length) animateEls(regular, 0);
+    if (widgets.length) animateEls(widgets, 200);
+  };
+
+  const clearFade = (inner) => {
+    if (!inner) return;
+    inner.classList.remove('fade-in-active');
+    inner.querySelectorAll(allSelector).forEach(el => {
+      el.getAnimations().forEach(a => a.cancel());
+      el.style.opacity = '';
+      el.style.transform = '';
+    });
+  };
+
+  const cte = state.page.clickToEnter;
+  const hasClickToEnter = cte && (cte.enabled === true || cte === true);
+
+  if (previewInner) {
+    if (state.page.fadeIn) {
+      previewInner.classList.add('fade-in-active');
+      startFade(previewInner);
+    } else {
+      clearFade(previewInner);
+    }
+  }
+
+  if (publicInner) {
+    if (state.page.fadeIn) {
+      publicInner.classList.add('fade-in-active');
+      if (hasClickToEnter) {
+        const overlay = document.getElementById('click-to-enter-overlay');
+        const overlayVisible = overlay && overlay.style.display !== 'none';
+        if (overlayVisible) {
+          const all = publicInner.querySelectorAll(allSelector);
+          all.forEach(el => {
+            el.getAnimations().forEach(a => a.cancel());
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(-20px)';
+          });
+          return;
+        }
+      }
+      startFade(publicInner);
+    } else {
+      clearFade(publicInner);
+    }
+  }
 }
 
 function setupClickToEnter() {
@@ -2970,13 +4405,35 @@ function setupClickToEnterOverlay() {
     overlay.addEventListener('click', () => {
       overlay.classList.add('hidden');
       document.body.classList.remove('lock-scroll');
+      if (state.page.music && state.page.music.src) playBgMusic();
       setTimeout(() => {
         overlay.style.display = 'none';
         overlay.setAttribute('aria-hidden', 'true');
+        applyFadeIn();
       }, 400);
     });
   }
 }
+
+window.syncClickToEnterOverlay = function() {
+  const overlay = document.getElementById('click-to-enter-overlay');
+  const overlayMessage = document.getElementById('click-to-enter-message');
+  const cte = state.page.clickToEnter;
+  const hasClickToEnter = cte && (cte.enabled === true || cte === true);
+  if (overlay) {
+    if (hasClickToEnter) {
+      overlay.style.display = 'flex';
+      overlay.classList.remove('hidden');
+      overlay.removeAttribute('aria-hidden');
+      if (overlayMessage) {
+        overlayMessage.textContent = cte.text || state.page.clickToEnterText || 'Click to enter';
+      }
+    } else {
+      overlay.style.display = 'none';
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+  }
+};
 
 function setupTilt3DProfileToggle() {
   const tiltToggleBtn = document.getElementById('tilt3d-profile-toggle');
@@ -3043,6 +4500,127 @@ function setupTilt3DProfileToggle() {
   window.syncTilt3DProfileToggle = syncTiltToggleUI;
 }
 
+function setupBadgesSettings() {
+  const toggleBtn = document.getElementById('badges-toggle');
+  const swatches = document.querySelectorAll('#badges-settings .badge-swatch');
+  const resetBtn = document.getElementById('badges-color-reset-btn');
+  const glowBtn = document.getElementById('badges-glow-toggle');
+
+  const syncToggleUI = () => {
+    if (!toggleBtn) return;
+    const on = state.page.badgesEnabled;
+    toggleBtn.textContent = on ? 'On' : 'Off';
+    toggleBtn.classList.toggle('btn--active', on);
+  };
+
+  const syncSwatchesUI = () => {
+    const current = state.page.badgesColorName || '';
+    swatches.forEach(el => {
+      el.classList.toggle('selected', el.dataset.color === current);
+    });
+  };
+
+  const syncGlowUI = () => {
+    if (!glowBtn) return;
+    const on = state.page.badgesGlow;
+    glowBtn.textContent = on ? 'Glow: On' : 'Glow: Off';
+    glowBtn.classList.toggle('btn--active', on);
+  };
+
+  const updateBadges = () => {
+    updatePreview();
+    const pubScreen = document.getElementById('screen-public');
+    if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+  };
+
+  syncToggleUI();
+  syncSwatchesUI();
+  syncGlowUI();
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.badgesEnabled = !state.page.badgesEnabled;
+      syncToggleUI();
+      markPageModified();
+      updateBadges();
+    });
+  }
+
+  swatches.forEach(el => {
+    el.addEventListener('click', () => {
+      pushHistory();
+      state.page.badgesColorName = el.dataset.color || '';
+      syncSwatchesUI();
+      markPageModified();
+      updateBadges();
+    });
+  });
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.badgesColorName = '';
+      syncSwatchesUI();
+      markPageModified();
+      updateBadges();
+      showToast('Badge color reset');
+    });
+  }
+
+  if (glowBtn) {
+    glowBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.badgesGlow = !state.page.badgesGlow;
+      syncGlowUI();
+      markPageModified();
+      updateBadges();
+    });
+  }
+}
+
+function setupIconsColorSettings() {
+  const swatches = document.querySelectorAll('#icons-color-pool .badge-swatch');
+  const resetBtn = document.getElementById('icons-color-reset-btn');
+  const colorMap = { white: '#fff', black: '#000', red: '#ff3232', blue: '#3282ff', gold: '#ffd700', green: '#32c864', pink: '#ff50b4', purple: '#a050ff' };
+
+  const syncUI = () => {
+    const current = state.page.iconsColorName || '';
+    swatches.forEach(el => {
+      el.classList.toggle('selected', el.dataset.iconsColor === current);
+    });
+  };
+
+  const update = () => {
+    updatePreview();
+    const pubScreen = document.getElementById('screen-public');
+    if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+  };
+
+  syncUI();
+
+  swatches.forEach(el => {
+    el.addEventListener('click', () => {
+      pushHistory();
+      state.page.iconsColorName = el.dataset.iconsColor || '';
+      syncUI();
+      markPageModified();
+      update();
+    });
+  });
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      pushHistory();
+      state.page.iconsColorName = '';
+      syncUI();
+      markPageModified();
+      update();
+      showToast('Icon color reset');
+    });
+  }
+}
+
 function applyLayout() {
   const phoneInner = document.querySelector('.phone-inner');
   if (phoneInner) {
@@ -3056,6 +4634,7 @@ function applyLayout() {
   // Apply layout for link buttons (they are independent elements in stageInner)
   applyLinkLayouts();
   applyStageObjectLayout();
+  applyWidgetLayout();
 }
 
 function applyDefaultElementsLayout(stageInner, opts = {}) {
@@ -3124,14 +4703,14 @@ function applyPhoneLayout() {
 
   const stageW = stage.clientWidth;
   const stageH = stage.clientHeight;
-  if (stageW < 200 || stageH < 200) return;
+  if (stageW < 50 || stageH < 50) return;
 
   // Save canvas dimensions for public page rendering
   state.builder.canvasW = stageW;
   state.builder.canvasH = stageH;
 
-  const w = Math.max(200, Math.min(Number(box.w || 280), stageW));
-  const h = Math.max(320, Math.min(Number(box.h || 560), stageH));
+  const w = Math.max(50, Number(box.w || 280));
+  const h = Math.max(80, Number(box.h || 560));
   // Use stored position; only auto-center if not yet positioned
   let x = Number(box.x);
   let y = Number(box.y);
@@ -3188,7 +4767,6 @@ function setBuilderTool(tool) {
   if (btnSelect) btnSelect.classList.toggle('active', tool === 'select');
   if (preview) preview.classList.toggle('is-hand-mode', tool === 'hand');
   if (tool === 'cursor') {
-    state.builder.view = { x: 0, y: 0, scale: 1 };
     applyPreviewView();
   }
   document.dispatchEvent(new CustomEvent('builder-tool-changed', { detail: { tool } }));
@@ -3343,17 +4921,23 @@ function applyPublicScale() {
   // Apply custom objects layout
   applyPublicCustomObjectsLayout(scale);
 
-  // Position phone frame
+  // Position phone frame (clamp to canvas like builder does)
   if (phoneLayout) {
-    const baseW = Math.max(200, Number(phoneLayout.w || 280));
-    const baseH = Math.max(320, Number(phoneLayout.h || 560));
+    const baseW = Math.max(50, Number(phoneLayout.w || 280));
+    const baseH = Math.max(80, Number(phoneLayout.h || 560));
+    let px = Number(phoneLayout.x);
+    let py = Number(phoneLayout.y);
+    if (!Number.isFinite(px) || !Number.isFinite(py)) {
+      px = Math.round((canvasW - baseW) / 2);
+      py = Math.round((canvasH - baseH) / 2);
+    }
     frame.style.position = 'absolute';
-    frame.style.left = `${phoneLayout.x}px`;
-    frame.style.top = `${phoneLayout.y}px`;
+    frame.style.left = `${px}px`;
+    frame.style.top = `${py}px`;
     frame.style.width = `${baseW}px`;
     frame.style.height = `${baseH}px`;
     
-    // Don't override transform if 3D Tilt is active
+    // Don't override transform if 3D Tilt is active (tilt engine handles it)
     if (!phoneLayout.tilt3D) {
       frame.style.transform = `rotate(${phoneLayout.rotate || 0}deg)`;
     }
@@ -3364,7 +4948,10 @@ function applyPublicScale() {
   // Position default elements (avatar, name, bio, links) - they are in stageInner
   if (inner) {
     applyPublicDefaultElementsLayout(inner, scale);
+    applyPublicWidgetLayout(inner);
   }
+  
+  applyPhoneBlur();
 }
 
 function applyPublicCustomObjectsLayout(scale = 1) {
@@ -3390,7 +4977,42 @@ function applyPublicCustomObjectsLayout(scale = 1) {
     el.style.width = `${box.w}px`;
     el.style.height = obj.type === 'text' ? 'auto' : `${box.h}px`;
     
-    // Don't override transform if 3D Tilt is active
+    // Don't override transform if 3D Tilt is active (tilt engine handles it)
+    if (!phoneTiltEnabled) {
+      el.style.transform = `rotate(${box.rotate || 0}deg)`;
+    }
+  });
+}
+
+function applyWidgetLayout() {
+  const widgetKeys = ['spotify-widget', 'discord-widget', 'custom-player-widget'];
+  const stageInner = document.getElementById('preview-stage-inner');
+  if (!stageInner) return;
+  widgetKeys.forEach((key) => {
+    const el = stageInner.querySelector(`[data-editable="${key}"]`);
+    const box = state.page.layout[key];
+    if (!el || !box) return;
+    el.style.left = `${box.x}px`;
+    el.style.top = `${box.y}px`;
+    if (box.w) el.style.width = `${box.w}px`;
+    if (box.h) el.style.height = `${box.h}px`;
+    el.style.transform = `rotate(${box.rotate || 0}deg)`;
+  });
+}
+
+function applyPublicWidgetLayout(inner) {
+  const widgetKeys = ['spotify-widget', 'discord-widget', 'custom-player-widget'];
+  if (!inner) return;
+  widgetKeys.forEach((key) => {
+    const el = inner.querySelector(`[data-public="${key}"]`);
+    const box = state.page.layout[key];
+    if (!el || !box) return;
+    el.style.position = 'absolute';
+    el.style.left = `${box.x}px`;
+    el.style.top = `${box.y}px`;
+    if (box.w) el.style.width = `${box.w}px`;
+    if (box.h) el.style.height = `${box.h}px`;
+    const phoneTiltEnabled = state.page.layout?.phone?.tilt3D;
     if (!phoneTiltEnabled) {
       el.style.transform = `rotate(${box.rotate || 0}deg)`;
     }
@@ -3419,7 +5041,7 @@ function applyPublicDefaultElementsLayout(inner, scale = 1) {
     el.style.width = `${box.w}px`;
     el.style.height = `${box.h}px`;
     
-    // Don't override transform if 3D Tilt is active
+    // Don't override transform if 3D Tilt is active (tilt engine handles it)
     const phoneTiltEnabled = state.page.layout?.phone?.tilt3D;
     if (!phoneTiltEnabled) {
       el.style.transform = `rotate(${box.rotate || 0}deg)`;
@@ -3442,7 +5064,12 @@ function applyPublicDefaultElementsLayout(inner, scale = 1) {
       btn.style.width = `${box.w}px`;
       btn.style.height = `${box.h}px`;
       
-      // Don't override transform if 3D Tilt is active
+      // Apply link icon scale for icon-mode links
+      if (state.page.links[i] && state.page.links[i].style === 'icon') {
+        btn.style.setProperty('--link-scale', String(state.page.linkIconScale ?? 1));
+      }
+      
+      // Don't override transform if 3D Tilt is active (tilt engine handles it)
       const phoneTiltEnabled = state.page.layout?.phone?.tilt3D;
       if (!phoneTiltEnabled) {
         btn.style.transform = `rotate(${box.rotate || 0}deg)`;
@@ -3500,6 +5127,7 @@ function updatePublicPage() {
   if (state.page.btnStyle) frame.classList.add(state.page.btnStyle);
   frame.style.setProperty('--page-accent', state.page.accentColor);
   frame.style.display = (isObjectDeleted('phone') || isObjectInHiddenLayer('phone')) ? 'none' : '';
+  applyBackgroundEffect();
 
   // Apply custom frame overlay if exists
   const previewOverlay = document.getElementById('preview-frame-overlay');
@@ -3532,7 +5160,7 @@ function updatePublicPage() {
   const publicScreen = document.getElementById('screen-public');
   if (publicScreen) {
     if (state.page.bgImageGlobal) {
-      publicScreen.style.backgroundImage = `url("${state.page.bgImageGlobal}")`;
+      publicScreen.style.backgroundImage = `url('${state.page.bgImageGlobal}')`;
       publicScreen.style.backgroundSize = 'cover';
       publicScreen.style.backgroundPosition = 'center';
       publicScreen.style.backgroundRepeat = 'no-repeat';
@@ -3547,7 +5175,12 @@ function updatePublicPage() {
   // Phone background image layer
   if (phoneBgLayer) {
     if (state.page.bgImagePhone) {
-      phoneBgLayer.style.backgroundImage = `url("${state.page.bgImagePhone}")`;
+      phoneBgLayer.style.backgroundImage = `url('${state.page.bgImagePhone}')`;
+      phoneBgLayer.style.backgroundSize = 'cover';
+      phoneBgLayer.style.backgroundPosition = 'center';
+      phoneBgLayer.style.backgroundRepeat = 'no-repeat';
+    } else if (state.page.bgImageGlobal) {
+      phoneBgLayer.style.backgroundImage = `url('${state.page.bgImageGlobal}')`;
       phoneBgLayer.style.backgroundSize = 'cover';
       phoneBgLayer.style.backgroundPosition = 'center';
       phoneBgLayer.style.backgroundRepeat = 'no-repeat';
@@ -3586,6 +5219,7 @@ function updatePublicPage() {
     );
     nameEl.style.fontFamily = `'${state.page.font}', sans-serif`;
     nameEl.style.fontSize = state.page.nameSize + 'px';
+    renderBadges(nameEl);
   }
   if (bioEl) {
     const hidden = isObjectDeleted('bio');
@@ -3612,7 +5246,12 @@ function updatePublicPage() {
         if (isObjectDeleted(key)) return;
         
         const isIconStyle = link.style === 'icon';
-        const serviceIcon = getServiceIconContent(link.url, link.emoji);
+        const colorName = state.page.iconsColorName;
+        const hex = colorName ? (iconColorMap[colorName] || '') : '';
+        const serviceIcon = link.type === 'copy'
+          ? getCopyServiceIcon(link.copyIcon, hex)
+          : getColoredServiceIcon(link.url, link.emoji);
+        const hasCustomIcon = link.icon && (link.icon.startsWith('data:') || link.icon.startsWith('http'));
 
         const a = document.createElement('a');
         if (isIconStyle) {
@@ -3634,18 +5273,41 @@ function updatePublicPage() {
           }
         }
         a.dataset.public = key;
-        a.href = link.url || '#';
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
 
-        if (isIconStyle) {
+        if (link.type === 'copy') {
+          const copyData = link.copyText || '';
+          a.href = '#';
+          a.addEventListener('click', (e) => {
+            e.preventDefault();
+            copyToClipboardWithToast(copyData);
+          });
+        } else {
+          a.href = normalizeUrl(link.url);
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
+
+        if (hasCustomIcon) {
+          const imgStyle = isIconStyle ? 'width:60%;height:60%;object-fit:contain;display:block;' : 'width:20px;height:20px;object-fit:contain;display:block;margin-right:8px;';
+          a.innerHTML = `<img src="${link.icon}" alt="" style="${imgStyle}">${isIconStyle ? '' : `<span class="link-label-text">${link.label || ''}</span>`}`;
+          if (!isIconStyle) {
+            a.style.display = 'flex';
+            a.style.alignItems = 'center';
+            a.style.justifyContent = 'center';
+          }
+          a.style.borderColor = `${state.page.accentColor}28`;
+        } else if (isIconStyle) {
           a.innerHTML = serviceIcon;
         } else {
-          const service = detectServiceFromUrl(link.url);
-          if (service) {
+          if (link.type === 'copy') {
             a.innerHTML = `${serviceIcon}<span class="link-label-text">${link.label || ''}</span>`;
           } else {
-            a.textContent = `${link.emoji || '🔗'} ${link.label || ''}`;
+            const service = detectServiceFromUrl(link.url);
+            if (service) {
+              a.innerHTML = `${serviceIcon}<span class="link-label-text">${link.label || ''}</span>`;
+            } else {
+              a.textContent = `${link.emoji || '🔗'} ${link.label || ''}`;
+            }
           }
           a.style.borderColor = `${state.page.accentColor}28`;
         }
@@ -3690,7 +5352,8 @@ function updatePublicPage() {
   // Click-to-enter overlay
   const overlay = document.getElementById('click-to-enter-overlay');
   const overlayMessage = document.getElementById('click-to-enter-message');
-  const hasClickToEnter = state.page.clickToEnter;
+  const cte = state.page.clickToEnter;
+  const hasClickToEnter = cte && (cte.enabled === true || cte === true);
 
   if (overlay) {
     if (hasClickToEnter) {
@@ -3698,7 +5361,7 @@ function updatePublicPage() {
       overlay.classList.remove('hidden');
       overlay.removeAttribute('aria-hidden');
       if (overlayMessage) {
-        overlayMessage.textContent = state.page.clickToEnterText || 'Click to enter';
+        overlayMessage.textContent = cte.text || state.page.clickToEnterText || 'Click to enter';
       }
     } else {
       overlay.style.display = 'none';
@@ -3706,8 +5369,71 @@ function updatePublicPage() {
     }
   }
   
-updatePublicSpotifyWidget();
+  updatePublicSpotifyWidget();
     updateDiscordWidgets();
+    renderPublicCustomPlayer();
+    updateAllWidgetEffects();
+    applyFadeIn();
+    setupPublicMusicVolume();
+    requestAnimationFrame(() => {
+      applyPublicScale();
+    });
+  initAllTypewriters(document.getElementById('pub-name'));
+  initAllTypewriters(document.getElementById('pub-bio'));
+}
+
+function setupPublicMusicVolume() {
+  const container = document.getElementById('public-music-volume');
+  const slider = document.getElementById('public-music-volume-slider');
+  if (!container || !slider) return;
+
+  const hasMusic = state.page.music && state.page.music.src;
+  container.style.display = hasMusic ? 'flex' : 'none';
+
+  const userVol = Math.max(0, Math.min(1, Number(state.page.music && state.page.music.volume != null ? state.page.music.volume : 1)));
+  slider.value = String(Math.round(userVol * 100));
+
+  const icon = container.querySelector('.public-music-volume-icon');
+
+  function updateMuteUI() {
+    const isMuted = !!state.page.music.muted;
+    if (icon) {
+      if (isMuted) {
+        icon.innerHTML = `<line x1="1" y1="1" x2="23" y2="23"/><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>`;
+      } else {
+        icon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>`;
+      }
+    }
+    const a = ensureBgAudio();
+    if (isMuted) {
+      a.volume = 0;
+    } else {
+      const gain = Math.max(0.05, Math.min(1, Number(state.page.music && state.page.music.gain ? state.page.music.gain : 1)));
+      const vol = Math.max(0, Math.min(1, Number(state.page.music && state.page.music.volume != null ? state.page.music.volume : 1)));
+      a.volume = Math.max(0, Math.min(gain, vol * gain));
+    }
+  }
+
+  updateMuteUI();
+
+  slider.addEventListener('input', () => {
+    const pct = Math.max(0, Math.min(100, Number(slider.value)));
+    const vol = pct / 100;
+    const a = ensureBgAudio();
+    const gain = Math.max(0.05, Math.min(1, Number(state.page.music && state.page.music.gain ? state.page.music.gain : 1)));
+    state.page.music.volume = vol;
+    a.volume = Math.max(0, Math.min(gain, vol * gain));
+    if (vol > 0 && state.page.music.muted) {
+      state.page.music.muted = false;
+      updateMuteUI();
+    }
+  });
+
+  container.addEventListener('click', (e) => {
+    if (e.target.closest('.public-music-volume-slider')) return;
+    state.page.music.muted = !state.page.music.muted;
+    updateMuteUI();
+  });
 }
 
 function setupPublicPageResponsiveScale() {
@@ -3757,197 +5483,228 @@ function setupPublicPageResponsiveScale() {
       console.log('[3D TILT] Public screen not active');
       return;
     }
-    
+
     const phoneLayout = state.page.layout?.phone || {};
-    const tiltEnabled = !!phoneLayout.tilt3D;
-    console.log('[3D TILT] layout.phone:', JSON.stringify(phoneLayout));
-    console.log('[3D TILT] tiltEnabled:', tiltEnabled);
-    
-    if (!tiltEnabled) {
+    const phoneTilt = !!phoneLayout.tilt3D;
+    const discordTilt = !!state.page.discordWidgetTilt;
+    const spotifyTilt = !!state.page.spotifyWidgetTilt;
+    const customPlayerTilt = !!state.page.customPlayerTilt;
+    const anyTilt = phoneTilt || discordTilt || spotifyTilt || customPlayerTilt;
+    console.log('[3D TILT] tilts — phone:', phoneTilt, 'discord:', discordTilt, 'spotify:', spotifyTilt, 'customPlayer:', customPlayerTilt);
+
+    if (!anyTilt) {
       reset3DTilt();
       tilt3DRunning = false;
       return;
     }
-    
+
     if (tilt3DRunning) {
       console.log('[3D Tilt] Already running, resetting first');
       reset3DTilt();
       tilt3DRunning = false;
     }
-    
+
     tilt3DRunning = true;
     console.log('[3D Tilt] Starting tilt animation');
-    
-    const phoneEl = document.getElementById('public-frame');
-    if (!phoneEl) {
-      console.log('[3D Tilt] Phone element not found!');
+
+    const tiltElements = {};
+    const linkElements = [];
+
+    if (phoneTilt) {
+      const phoneEl = document.getElementById('public-frame');
+      if (phoneEl) tiltElements.phone = { el: phoneEl, key: 'phone' };
+      const avatarEl = document.getElementById('pub-avatar');
+      if (avatarEl) tiltElements.avatar = { el: avatarEl, key: 'avatar' };
+      const nameEl = document.getElementById('pub-name');
+      if (nameEl) tiltElements.name = { el: nameEl, key: 'name' };
+      const bioEl = document.getElementById('pub-bio');
+      if (bioEl) tiltElements.bio = { el: bioEl, key: 'bio' };
+      document.querySelectorAll('#screen-public [data-public^="link-"]').forEach(el => {
+        linkElements.push({ el, key: el.dataset.public });
+      });
+      const blurEl = document.querySelector('.public-stage-inner .phone-blur-layer');
+      if (blurEl) tiltElements.phoneBlur = { el: blurEl, key: 'phone-blur' };
+    }
+
+    if (discordTilt) {
+      const el = document.getElementById('discord-widget-container');
+      if (el) tiltElements.discord = { el, key: 'discord-widget' };
+    }
+    if (spotifyTilt) {
+      const el = document.getElementById('spotify-widget-container');
+      if (el) tiltElements.spotify = { el, key: 'spotify-widget' };
+    }
+    if (customPlayerTilt) {
+      const el = document.getElementById('custom-player-widget-container');
+      if (el) tiltElements.customPlayer = { el, key: 'custom-player-widget' };
+    }
+
+    // At least one tilt element must exist
+    const hasEl = Object.values(tiltElements).some(e => e.el);
+    if (!hasEl) {
+      tilt3DRunning = false;
       return;
     }
-    
-    console.log('[3D Tilt] Phone element found:', phoneEl);
-    
-    const tiltElements = {
-      phone: { el: phoneEl, key: 'phone' },
-      avatar: { el: document.getElementById('pub-avatar'), key: 'avatar' },
-      name: { el: document.getElementById('pub-name'), key: 'name' },
-      bio: { el: document.getElementById('pub-bio'), key: 'bio' }
-    };
-    
-    console.log('[3D Tilt] tiltElements:', Object.entries(tiltElements).map(([k, v]) => `${k}=${!!v.el}`).join(', '));
-    
-    const linkElements = [];
-    document.querySelectorAll('#screen-public [data-public^="link-"]').forEach(el => {
-      const key = el.dataset.public;
-      linkElements.push({ el, key });
+
+    // Reference element for mouse tracking — phone or first widget
+    const refEl = (tiltElements.phone && tiltElements.phone.el) ||
+                  (tiltElements.discord && tiltElements.discord.el) ||
+                  (tiltElements.spotify && tiltElements.spotify.el) ||
+                  (tiltElements.customPlayer && tiltElements.customPlayer.el);
+    if (!refEl) {
+      tilt3DRunning = false;
+      return;
+    }
+
+    // Disable CSS transitions on tilt elements so they don't conflict with rAF animation
+    Object.values(tiltElements).forEach(({ el }) => {
+      if (el) {
+        el.dataset.savedTransition = el.style.transition || '';
+        el.style.transition = 'none';
+      }
     });
-    
-    const maxRotateX = phoneLayout.tilt3D.maxX || 15;
-    const maxRotateY = phoneLayout.tilt3D.maxY || 15;
-    const perspective = phoneLayout.tilt3D.perspective || 800;
-    const smoothing = phoneLayout.tilt3D.smoothing || 0.15;
-    
+    linkElements.forEach(({ el }) => {
+      el.dataset.savedTransition = el.style.transition || '';
+      el.style.transition = 'none';
+    });
+
+    const tiltConfig = phoneLayout.tilt3D || {};
+    const maxRotateX = tiltConfig.maxX || 15;
+    const maxRotateY = tiltConfig.maxY || 15;
+    const perspective = tiltConfig.perspective || 800;
+    const smoothing = tiltConfig.smoothing || 0.15;
+
     let currentRotateX = 0;
     let currentRotateY = 0;
     let targetRotateX = 0;
     let targetRotateY = 0;
-    
+
     const getBaseRotation = (key) => {
+      if (key === 'discord-widget' || key === 'spotify-widget' || key === 'custom-player-widget') return 0;
       const box = state.page.layout[key];
       return box && box.rotate ? box.rotate : 0;
     };
-    
+
     const getTiltTransform = (key) => {
       const baseRotate = getBaseRotation(key);
       return `rotate(${baseRotate}deg) rotateX(${currentRotateX}deg) rotateY(${currentRotateY}deg)`;
     };
-    
-    // Apply perspective to parent container (no preserve-3d — elements stay in 2D stacking order)
+
+    // Apply perspective to parent container
     const stageInner = document.querySelector('.public-stage-inner');
     if (stageInner) {
       stageInner.style.perspective = `${perspective}px`;
     }
-    
+
     function animateTilt() {
       tiltAnimFrameCount++;
-      
+
       currentRotateX += (targetRotateX - currentRotateX) * smoothing;
       currentRotateY += (targetRotateY - currentRotateY) * smoothing;
-      
-      if (tiltAnimFrameCount % 30 === 0) {
-        console.log('[3D Tilt] Animating, current:', currentRotateX.toFixed(1), currentRotateY.toFixed(1));
-      }
-      
+
       Object.values(tiltElements).forEach(({ el, key }) => {
-        if (el) {
-          const transform = getTiltTransform(key);
-          el.style.transform = transform;
-          if (tiltAnimFrameCount % 60 === 0) {
-            console.log('[3D Tilt] Applied transform to', key, ':', transform);
-          }
-        }
+        if (el) el.style.transform = getTiltTransform(key);
       });
-      
       linkElements.forEach(({ el, key }) => {
         el.style.transform = getTiltTransform(key);
       });
-      
+
+      if (tiltElements.phone) {
+        const blurEl = document.querySelector('.public-stage-inner .phone-blur-layer');
+        if (blurEl) blurEl.style.transform = tiltElements.phone.el.style.transform;
+      }
+
       requestAnimationFrame(animateTilt);
     }
-    
+
     animateTilt();
     console.log('[3D Tilt] Animation loop started');
-    console.log('[3D Tilt] Tilt elements:', Object.entries(tiltElements).map(([k, v]) => `${k}=${v.el?.id}`).join(', '));
-    console.log('[3D Tilt] Link elements count:', linkElements.length);
-    
-    // Set initial transform for all elements
-    Object.values(tiltElements).forEach(({ el, key }) => {
-      if (el) {
-        el.style.transform = getTiltTransform(key);
-        console.log('[3D Tilt] Initial transform for', key, ':', getTiltTransform(key));
-      }
-    });
-    
-    linkElements.forEach(({ el, key }) => {
-      el.style.transform = getTiltTransform(key);
-    });
-    
+
     // Remove old handler if exists
     if (tiltMoveHandler) {
       document.removeEventListener('mousemove', tiltMoveHandler);
     }
-    
-    // Use phone element mousemove like custom objects
+
     tiltMoveHandler = (e) => {
-      const phoneRect = phoneEl.getBoundingClientRect();
-      const isOver = e.clientX >= phoneRect.left && e.clientX <= phoneRect.right && 
-                     e.clientY >= phoneRect.top && e.clientY <= phoneRect.bottom;
-      
+      const refRect = refEl.getBoundingClientRect();
+      const isOver = e.clientX >= refRect.left && e.clientX <= refRect.right &&
+                     e.clientY >= refRect.top && e.clientY <= refRect.bottom;
+
       if (isOver && !isHoveringPhone) {
         isHoveringPhone = true;
-        console.log('[3D Tilt] Hovering phone: true');
       } else if (!isOver && isHoveringPhone) {
         isHoveringPhone = false;
         targetRotateX = 0;
         targetRotateY = 0;
-        console.log('[3D Tilt] Hovering phone: false');
       }
-      
       if (!isHoveringPhone) return;
-      
-      // Calculate relative to phone center (like custom objects)
-      const centerX = phoneRect.left + phoneRect.width / 2;
-      const centerY = phoneRect.top + phoneRect.height / 2;
-      
+
+      const centerX = refRect.left + refRect.width / 2;
+      const centerY = refRect.top + refRect.height / 2;
       const mouseX = e.clientX - centerX;
       const mouseY = e.clientY - centerY;
-      
-      const maxOffsetX = phoneRect.width / 2;
-      const maxOffsetY = phoneRect.height / 2;
-      
+      const maxOffsetX = refRect.width / 2;
+      const maxOffsetY = refRect.height / 2;
+
       targetRotateY = -(mouseX / maxOffsetX) * maxRotateY;
       targetRotateX = (mouseY / maxOffsetY) * maxRotateX;
-      
-      if (tiltAnimFrameCount % 30 === 0) {
-        console.log('[3D Tilt] handleTiltMove fired, target:', targetRotateX.toFixed(1), targetRotateY.toFixed(1));
-      }
     };
-    
+
     document.addEventListener('mousemove', tiltMoveHandler);
     console.log('[3D Tilt] Global mousemove handler attached');
   }
   
   function reset3DTilt() {
-    const phoneEl = document.getElementById('public-frame');
-    const tiltElements = {
-      phone: { el: phoneEl, key: 'phone' },
-      avatar: { el: document.getElementById('pub-avatar'), key: 'avatar' },
-      name: { el: document.getElementById('pub-name'), key: 'name' },
-      bio: { el: document.getElementById('pub-bio'), key: 'bio' }
-    };
-    
+    const tiltElements = [
+      { el: document.getElementById('public-frame'), key: 'phone' },
+      { el: document.querySelector('.public-stage-inner .phone-blur-layer'), key: 'phone-blur' },
+      { el: document.getElementById('pub-avatar'), key: 'avatar' },
+      { el: document.getElementById('pub-name'), key: 'name' },
+      { el: document.getElementById('pub-bio'), key: 'bio' },
+      { el: document.getElementById('discord-widget-container'), key: 'discord-widget' },
+      { el: document.getElementById('spotify-widget-container'), key: 'spotify-widget' },
+      { el: document.getElementById('custom-player-widget-container'), key: 'custom-player-widget' }
+    ];
+
     const linkElements = [];
     document.querySelectorAll('#screen-public [data-public^="link-"]').forEach(el => {
       linkElements.push({ el, key: el.dataset.public });
     });
-    
+
     const getBaseRotation = (key) => {
+      if (key === 'discord-widget' || key === 'spotify-widget' || key === 'custom-player-widget') return 0;
       const box = state.page.layout[key];
       return box && box.rotate ? box.rotate : 0;
     };
-    
-    Object.values(tiltElements).forEach(({ el, key }) => {
+
+    tiltElements.forEach(({ el, key }) => {
       if (el) {
         const baseRotate = getBaseRotation(key);
         el.style.transform = baseRotate ? `rotate(${baseRotate}deg)` : '';
-        console.log('[3D Tilt] Reset transform for', key, ':', el.style.transform);
+        el.style.transition = el.dataset.savedTransition || '';
+        delete el.dataset.savedTransition;
       }
     });
-    
+
     linkElements.forEach(({ el, key }) => {
       const baseRotate = getBaseRotation(key);
       el.style.transform = baseRotate ? `rotate(${baseRotate}deg)` : '';
+      el.style.transition = el.dataset.savedTransition || '';
+      delete el.dataset.savedTransition;
     });
-    
+
+    // Remove mousemove handler
+    if (tiltMoveHandler) {
+      document.removeEventListener('mousemove', tiltMoveHandler);
+      tiltMoveHandler = null;
+    }
+
+    // Remove perspective from parent
+    const stageInner = document.querySelector('.public-stage-inner');
+    if (stageInner) {
+      stageInner.style.perspective = '';
+    }
+
     // Reset custom objects
     (state.page.customObjects || []).forEach((obj) => {
       const key = `obj-${obj.id}`;
@@ -3958,21 +5715,8 @@ function setupPublicPageResponsiveScale() {
         el.style.transform = baseRotate ? `rotate(${baseRotate}deg)` : '';
       }
     });
-    
-    // Remove mousemove handler
-    if (tiltMoveHandler) {
-      document.removeEventListener('mousemove', tiltMoveHandler);
-      tiltMoveHandler = null;
-    }
-    
-    // Remove perspective from parent
-    const stageInner = document.querySelector('.public-stage-inner');
-    if (stageInner) {
-      stageInner.style.perspective = '';
-    }
-    
+
     isHoveringPhone = false;
-    
     tilt3DRunning = false;
     console.log('[3D Tilt] Reset complete');
   }
@@ -4104,6 +5848,289 @@ function applyStyleToSelectedText(targetKey, styleMap) {
   range.insertNode(span);
   selection.removeAllRanges();
   syncTextStateFromPreview();
+  return true;
+}
+
+/* ============================================
+   Particle Text Effect Engine
+   ============================================ */
+const particleInstances = new Map();
+
+function hexToRgb(h) {
+  return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+
+function spawnParticle(W, H, size, speed) {
+  const a = Math.random() * Math.PI * 2;
+  const v = (0.15 + Math.random() * 0.85) * speed;
+  return {
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: (0.3 + Math.random()) * size,
+    vx: Math.cos(a) * v,
+    vy: Math.sin(a) * v,
+    alpha: 0.1 + Math.random() * 0.9,
+    da: (Math.random() - 0.5) * 0.016,
+  };
+}
+
+function startParticleCanvas(canvas) {
+  if (particleInstances.has(canvas)) return;
+
+  const color = canvas.dataset.color || '#a8c7fa';
+  const count = parseInt(canvas.dataset.count) || 150;
+  const size = parseFloat(canvas.dataset.size) || 1.4;
+  const speed = parseFloat(canvas.dataset.speed) || 0.5;
+
+  const parent = canvas.parentElement;
+  if (!parent) return;
+
+  let W = 0, H = 0;
+  let pts = [];
+  let running = true;
+
+  function resize() {
+    const r = parent.getBoundingClientRect();
+    W = r.width;
+    H = r.height;
+    if (W <= 0 || H <= 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+    pts = [];
+    for (let i = 0; i < count; i++) pts.push(spawnParticle(W, H, size, speed));
+  }
+
+  function tick() {
+    if (!running) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, W, H);
+    const [r, g, b] = hexToRgb(color);
+    for (const p of pts) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.alpha += p.da;
+      if (p.alpha <= 0.05 || p.alpha >= 1) p.da *= -1;
+      p.alpha = Math.max(0.05, Math.min(1, p.alpha));
+      if (p.x < -4) p.x = W + 4;
+      if (p.x > W + 4) p.x = -4;
+      if (p.y < -4) p.y = H + 4;
+      if (p.y > H + 4) p.y = -4;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${p.alpha.toFixed(2)})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  const ro = new ResizeObserver(() => resize());
+  ro.observe(parent);
+
+  const inst = { resize, tick, ro, stop: () => { running = false; } };
+  particleInstances.set(canvas, inst);
+
+  setTimeout(() => {
+    resize();
+    tick();
+  }, 50);
+
+  return inst;
+}
+
+function stopParticleCanvas(canvas) {
+  const inst = particleInstances.get(canvas);
+  if (inst) {
+    inst.stop();
+    if (inst.ro) inst.ro.disconnect();
+    particleInstances.delete(canvas);
+  }
+}
+
+function initParticleCanvases(container) {
+  if (!container) container = document;
+  for (const [canvas, inst] of particleInstances) {
+    if (!container.contains(canvas)) {
+      inst.stop();
+      if (inst.ro) inst.ro.disconnect();
+      particleInstances.delete(canvas);
+    }
+  }
+  container.querySelectorAll('.particle-canvas').forEach(c => startParticleCanvas(c));
+}
+
+function applyParticleEffectToText(targetKey) {
+  const el = document.querySelector(`[data-editable="${targetKey}"] .text-content`);
+  if (!el) return false;
+  if (el.querySelector('.particle-canvas')) return true;
+
+  pushHistory();
+
+  const outer = document.createElement('span');
+  outer.className = 'particle-text-outer';
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'particle-canvas';
+  canvas.dataset.color = '#a8c7fa';
+  canvas.dataset.count = '150';
+  canvas.dataset.size = '1.4';
+  canvas.dataset.speed = '0.5';
+  canvas.contentEditable = 'false';
+
+  const inner = document.createElement('span');
+  inner.className = 'particle-text-inner';
+
+  while (el.firstChild) inner.appendChild(el.firstChild);
+
+  outer.appendChild(canvas);
+  outer.appendChild(inner);
+  el.appendChild(outer);
+
+  syncTextStateFromPreview();
+
+  if (targetKey.startsWith('obj-')) {
+    const obj = state.page.customObjects.find(o => `obj-${o.id}` === targetKey);
+    if (obj && obj.type === 'text') obj.html = el.innerHTML;
+  }
+
+  startParticleCanvas(canvas);
+  markPageModified();
+  const pubScreen = document.getElementById('screen-public');
+  if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+  return true;
+}
+
+/* ============================================
+   Typewriter Text Effect Engine
+   ============================================ */
+const typewriterInstances = new Map();
+
+function initTypewriter(el) {
+  cleanupTypewriter(el);
+  const wordsAttr = el.dataset.twWords;
+  if (!wordsAttr) return;
+  const words = wordsAttr.split('|').filter(w => w.trim());
+  if (words.length === 0) return;
+
+  const state = {
+    words,
+    wordIndex: 0,
+    charIndex: 0,
+    isDeleting: false,
+    typeDelay: 90,
+    deleteDelay: 35,
+    pauseAfterType: 1200,
+    pauseAfterDelete: 400
+  };
+
+  typewriterInstances.set(el, { state, timerId: null });
+  el.textContent = '';
+  typewriterTick(el);
+}
+
+function typewriterTick(el) {
+  const instance = typewriterInstances.get(el);
+  if (!instance) return;
+  if (!document.contains(el)) {
+    cleanupTypewriter(el);
+    return;
+  }
+  const { state } = instance;
+  const word = state.words[state.wordIndex];
+
+  if (!state.isDeleting) {
+    state.charIndex++;
+    el.textContent = word.slice(0, state.charIndex);
+    if (state.charIndex === word.length) {
+      state.isDeleting = true;
+      instance.timerId = setTimeout(() => typewriterTick(el), state.pauseAfterType);
+      return;
+    }
+    instance.timerId = setTimeout(() => typewriterTick(el), state.typeDelay);
+  } else {
+    state.charIndex--;
+    el.textContent = word.slice(0, state.charIndex);
+    if (state.charIndex === 0) {
+      state.isDeleting = false;
+      state.wordIndex = (state.wordIndex + 1) % state.words.length;
+      instance.timerId = setTimeout(() => typewriterTick(el), state.pauseAfterDelete);
+      return;
+    }
+    instance.timerId = setTimeout(() => typewriterTick(el), state.deleteDelay);
+  }
+}
+
+function cleanupTypewriter(el) {
+  if (typewriterInstances.has(el)) {
+    const inst = typewriterInstances.get(el);
+    if (inst.timerId) clearTimeout(inst.timerId);
+    typewriterInstances.delete(el);
+  }
+}
+
+function cleanupAllTypewriters() {
+  typewriterInstances.forEach((inst) => {
+    if (inst.timerId) clearTimeout(inst.timerId);
+  });
+  typewriterInstances.clear();
+}
+
+function initAllTypewriters(container) {
+  if (!container) return;
+  container.querySelectorAll('.tw-typewriter').forEach(el => {
+    initTypewriter(el);
+  });
+}
+
+function applyTypewriterEffectToText(targetKey) {
+  const el = document.querySelector(`[data-editable="${targetKey}"] .text-content`);
+  if (!el) return false;
+  if (el.querySelector('.tw-typewriter')) return true;
+
+  let text = '';
+
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+    const range = selection.getRangeAt(0);
+    if (el.contains(range.commonAncestorContainer)) {
+      text = range.extractContents().textContent || '';
+      range.deleteContents();
+    }
+  }
+
+  if (!text) text = el.textContent || '';
+  if (!text) return false;
+
+  pushHistory();
+
+  const typewriterSpan = document.createElement('span');
+  typewriterSpan.className = 'tw-typewriter';
+  typewriterSpan.dataset.twWords = text;
+  el.textContent = '';
+  el.appendChild(typewriterSpan);
+
+  const cursorSpan = document.createElement('span');
+  cursorSpan.className = 'tw-cursor';
+  el.appendChild(cursorSpan);
+
+  syncTextStateFromPreview();
+
+  if (targetKey.startsWith('obj-')) {
+    const obj = state.page.customObjects.find(o => `obj-${o.id}` === targetKey);
+    if (obj && obj.type === 'text') {
+      obj.html = el.innerHTML;
+      obj.text = text;
+    }
+  }
+
+  initTypewriter(typewriterSpan);
+  markPageModified();
+  const pubScreen = document.getElementById('screen-public');
+  if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
   return true;
 }
 
@@ -4513,6 +6540,7 @@ function setupPreviewEditor() {
     if ((isResizeHandle || ev.target.closest('.resize-handle')) && isPhoneKey(key)) {
       ev.preventDefault();
       startDrag(target, key, 'resize', ev, frame);
+      ev.stopPropagation();
       return;
     }
     if (isMultiSelectIntent) {
@@ -4556,7 +6584,8 @@ function setupPreviewEditor() {
     const customObj = ev.target.closest('.custom-object[data-editable]');
     const defaultObj = ev.target.closest('#preview-stage-inner > [data-editable="avatar"], #preview-stage-inner > [data-editable="name"], #preview-stage-inner > [data-editable="bio"]');
     const linkBtn = ev.target.closest('[data-editable^="link-"]');
-    const target = phone || customObj || defaultObj || linkBtn;
+    const widgetEl = ev.target.closest('[data-editable="spotify-widget"], [data-editable="discord-widget"], [data-editable="custom-player-widget"]');
+    const target = phone || customObj || defaultObj || linkBtn || widgetEl;
     
     if (!target) return;
 
@@ -4580,7 +6609,18 @@ function setupPreviewEditor() {
     const isLinkButton = key && key.startsWith('link-');
     const isTextObject = key === 'name' || key === 'bio';
 
-    if (!isDefaultElement && !isLinkButton && !state.page.layout[key]) return;
+    if (!isDefaultElement && !isLinkButton && !state.page.layout[key]) {
+      if (key && (key === 'spotify-widget' || key === 'discord-widget' || key === 'custom-player-widget')) {
+        state.page.layout[key] = {
+          x: target.offsetLeft,
+          y: target.offsetTop,
+          w: target.offsetWidth || 300,
+          h: target.offsetHeight || 80,
+        };
+      } else {
+        return;
+      }
+    }
 
     const isResizeHandle = ev.target.classList.contains('resize-handle');
     const isRotateHandle = ev.target.classList.contains('rotate-handle');
@@ -4680,12 +6720,13 @@ function setupPreviewEditor() {
     const next = { ...startBox };
 
     if (isSelectTool() && mode === 'drag' && groupStartBoxes) {
+      const vs = (state.builder.view && state.builder.view.scale) || 1;
       const minX = Math.min(...Object.values(groupStartBoxes).map((b) => b.x));
       const minY = Math.min(...Object.values(groupStartBoxes).map((b) => b.y));
       const maxRight = Math.max(...Object.values(groupStartBoxes).map((b) => b.x + b.w));
       const maxBottom = Math.max(...Object.values(groupStartBoxes).map((b) => b.y + b.h));
-      const clampedDx = Math.max(-minX, Math.min(dx, bounds.width - maxRight));
-      const clampedDy = Math.max(-minY, Math.min(dy, bounds.height - maxBottom));
+      const clampedDx = Math.max(-minX, Math.min(dx / vs, bounds.width / vs - maxRight));
+      const clampedDy = Math.max(-minY, Math.min(dy / vs, bounds.height / vs - maxBottom));
       Object.entries(groupStartBoxes).forEach(([groupKey, box]) => {
         state.page.layout[groupKey] = {
           ...box,
@@ -4696,8 +6737,9 @@ function setupPreviewEditor() {
       applyLayout();
       return;
     } else if (mode === 'drag') {
-      next.x = startBox.x + dx;
-      next.y = startBox.y + dy;
+      const vs = (state.builder.view && state.builder.view.scale) || 1;
+      next.x = startBox.x + dx / vs;
+      next.y = startBox.y + dy / vs;
     } else if (mode === 'rotate') {
       const angle = Math.atan2(ev.clientY - startBox._centerY, ev.clientX - startBox._centerX) * 180 / Math.PI;
       let rotation = startBox._startRotation + (angle - startBox._startAngle);
@@ -4746,9 +6788,10 @@ function setupPreviewEditor() {
       applyPhoneRadius();
       return;
     } else {
-      next.w = startBox.w + dx;
-      next.h = startBox.h + dy;
-      
+      const vs = (state.builder.view && state.builder.view.scale) || 1;
+      next.w = startBox.w + dx / vs;
+      next.h = startBox.h + dy / vs;
+
       // For icon-style links, maintain square shape
       if (active.dataset.linkStyle === 'icon') {
         const size = Math.max(next.w, next.h);
@@ -4761,15 +6804,20 @@ function setupPreviewEditor() {
       }
     }
 
-    const minW = key === 'phone' ? 200 : 40;
-    const minH = key === 'phone' ? 320 : 24;
+    const minW = key === 'phone' ? 50 : 40;
+    const minH = key === 'phone' ? 80 : 24;
     
     // For icon-style links, use square minimum
     const isIconLink = active.dataset.linkStyle === 'icon';
     const iconMinSize = 30;
     
-    next.w = Math.max(isIconLink ? iconMinSize : minW, Math.min(next.w, bounds.width));
-    next.h = Math.max(isIconLink ? iconMinSize : minH, Math.min(next.h, bounds.height));
+    if (key === 'phone') {
+      next.w = Math.max(minW, next.w);
+      next.h = Math.max(minH, next.h);
+    } else {
+      next.w = Math.max(isIconLink ? iconMinSize : minW, Math.min(next.w, bounds.width));
+      next.h = Math.max(isIconLink ? iconMinSize : minH, Math.min(next.h, bounds.height));
+    }
     
     // For icon-style links, enforce square size
     if (isIconLink) {
@@ -4778,7 +6826,7 @@ function setupPreviewEditor() {
       next.h = size;
     }
     // Allow phone and stage-level objects to move freely beyond bounds
-    const isStageObj = key === 'phone' || key.startsWith('obj-');
+    const isStageObj = key === 'phone' || key.startsWith('obj-') || key.startsWith('link-') || ['spotify-widget', 'discord-widget', 'custom-player-widget', 'avatar', 'name', 'bio', 'links'].includes(key);
     if (!isStageObj) {
       next.x = Math.max(0, Math.min(next.x, bounds.width - next.w));
       next.y = Math.max(0, Math.min(next.y, bounds.height - next.h));
@@ -5236,19 +7284,30 @@ function setupPreviewEditor() {
   const objectHalftoneControls = document.getElementById('object-halftone-controls');
   const objectHalftoneSizeInput = document.getElementById('object-halftone-size-input');
   const objectHalftoneSizeVal = document.getElementById('object-halftone-size-val');
+  const objectCrtControls = document.getElementById('object-crt-controls');
+  const objectCrtScanlineInput = document.getElementById('object-crt-scanline-input');
+  const objectCrtScanlineVal = document.getElementById('object-crt-scanline-val');
+  const objectCrtDistortionInput = document.getElementById('object-crt-distortion-input');
+  const objectCrtDistortionVal = document.getElementById('object-crt-distortion-val');
   const removeEffectBtn = document.getElementById('remove-effect-btn');
 
   if (!state.page.effects) state.page.effects = {};
 
   const syncEffectControls = () => {
-    if (!objectMenuTargetKey || !objectHalftoneControls) return;
+    if (!objectMenuTargetKey) return;
+    if (objectHalftoneControls) objectHalftoneControls.style.display = 'none';
+    if (objectCrtControls) objectCrtControls.style.display = 'none';
     const effect = state.page.effects[objectMenuTargetKey];
     if (effect && effect.type === 'halftone') {
-      objectHalftoneControls.style.display = 'block';
+      if (objectHalftoneControls) objectHalftoneControls.style.display = 'block';
       if (objectHalftoneSizeInput) objectHalftoneSizeInput.value = effect.pixelSize || 6;
       if (objectHalftoneSizeVal) objectHalftoneSizeVal.textContent = effect.pixelSize || 6;
-    } else {
-      if (objectHalftoneControls) objectHalftoneControls.style.display = 'none';
+    } else if (effect && effect.type === 'crt') {
+      if (objectCrtControls) objectCrtControls.style.display = 'block';
+      if (objectCrtScanlineInput) objectCrtScanlineInput.value = effect.scanline || 60;
+      if (objectCrtScanlineVal) objectCrtScanlineVal.textContent = effect.scanline || 60;
+      if (objectCrtDistortionInput) objectCrtDistortionInput.value = effect.distortion || 50;
+      if (objectCrtDistortionVal) objectCrtDistortionVal.textContent = effect.distortion || 50;
     }
   };
 
@@ -5258,6 +7317,7 @@ function setupPreviewEditor() {
         objectEffectsGrid.classList.remove('show');
         objectEffectsGrid.setAttribute('hidden', '');
         if (objectHalftoneControls) objectHalftoneControls.style.display = 'none';
+        if (objectCrtControls) objectCrtControls.style.display = 'none';
       } else {
         objectEffectsGrid.classList.add('show');
         objectEffectsGrid.removeAttribute('hidden');
@@ -5329,7 +7389,73 @@ function setupPreviewEditor() {
           markPageModified();
           const pubScreen = document.getElementById('screen-public');
           if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+          if (window.WIDGET_KEYS.includes(objectMenuTargetKey)) {
+            window.syncWidgetEffect(objectMenuTargetKey);
+          }
           showToast('Halftone applied');
+        } else if (effectType === 'crt') {
+          pushHistory();
+          const scanline = parseInt(objectCrtScanlineInput ? objectCrtScanlineInput.value : 60) || 60;
+          const distortion = parseInt(objectCrtDistortionInput ? objectCrtDistortionInput.value : 50) || 50;
+          state.page.effects[objectMenuTargetKey] = {
+            type: 'crt',
+            scanline: scanline,
+            distortion: distortion
+          };
+          
+          const obj = state.page.customObjects.find(o => `obj-${o.id}` === objectMenuTargetKey);
+          if (obj && obj.src) {
+            const isGif = obj.originalSrc && (
+              obj.originalSrc.toLowerCase().endsWith('.gif') ||
+              obj.originalSrc.toLowerCase().includes('.gif') ||
+              obj.src.toLowerCase().endsWith('.gif') ||
+              obj.src.toLowerCase().includes('.gif')
+            );
+            
+            if (isGif) {
+              showToast('CRT not supported for GIF');
+              return;
+            }
+            
+            if (!obj.originalSrc) {
+              obj.originalSrc = obj.src;
+            }
+            
+            let imageSrc = obj.originalSrc;
+            if (obj.originalSrc.startsWith('http')) {
+              try {
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.dataUrl) {
+                    imageSrc = data.dataUrl;
+                  }
+                }
+              } catch (_) {}
+            }
+            
+            if (imageSrc.startsWith('http')) {
+              showToast('Cannot process external image');
+              return;
+            }
+            
+            const canvasData = await applyCRTToImage(imageSrc, scanline, distortion);
+            if (canvasData) {
+              obj.src = canvasData;
+            } else {
+              showToast('Could not process image');
+            }
+            updatePreview();
+          }
+          
+          syncEffectControls();
+          markPageModified();
+          const pubScreen = document.getElementById('screen-public');
+          if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+          if (window.WIDGET_KEYS.includes(objectMenuTargetKey)) {
+            window.syncWidgetEffect(objectMenuTargetKey);
+          }
+          showToast('CRT effect applied');
         }
 
         objectEffectsGrid.classList.remove('show');
@@ -5385,6 +7511,98 @@ function setupPreviewEditor() {
       });
     }
 
+    if (objectCrtScanlineInput) {
+      objectCrtScanlineInput.addEventListener('input', async () => {
+        if (!objectMenuTargetKey) return;
+        const scanline = parseInt(objectCrtScanlineInput.value) || 60;
+        if (objectCrtScanlineVal) objectCrtScanlineVal.textContent = scanline;
+        const effect = state.page.effects[objectMenuTargetKey];
+        if (effect && effect.type === 'crt') {
+          effect.scanline = scanline;
+          
+          const obj = state.page.customObjects.find(o => `obj-${o.id}` === objectMenuTargetKey);
+          if (obj && obj.originalSrc) {
+            const isGif = obj.originalSrc && (
+              obj.originalSrc.toLowerCase().endsWith('.gif') ||
+              obj.originalSrc.toLowerCase().includes('.gif')
+            );
+            if (isGif) return;
+            
+            let imageSrc = obj.originalSrc;
+            if (obj.originalSrc.startsWith('http')) {
+              try {
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.dataUrl) {
+                    imageSrc = data.dataUrl;
+                  }
+                }
+              } catch (_) {}
+            }
+            
+            if (imageSrc.startsWith('http')) return;
+            
+            const canvasData = await applyCRTToImage(imageSrc, scanline, effect.distortion || 50);
+            if (canvasData) {
+              obj.src = canvasData;
+            }
+            updatePreview();
+          }
+          
+          markPageModified();
+          const pubScreen = document.getElementById('screen-public');
+          if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+        }
+      });
+    }
+
+    if (objectCrtDistortionInput) {
+      objectCrtDistortionInput.addEventListener('input', async () => {
+        if (!objectMenuTargetKey) return;
+        const distortion = parseInt(objectCrtDistortionInput.value) || 50;
+        if (objectCrtDistortionVal) objectCrtDistortionVal.textContent = distortion;
+        const effect = state.page.effects[objectMenuTargetKey];
+        if (effect && effect.type === 'crt') {
+          effect.distortion = distortion;
+          
+          const obj = state.page.customObjects.find(o => `obj-${o.id}` === objectMenuTargetKey);
+          if (obj && obj.originalSrc) {
+            const isGif = obj.originalSrc && (
+              obj.originalSrc.toLowerCase().endsWith('.gif') ||
+              obj.originalSrc.toLowerCase().includes('.gif')
+            );
+            if (isGif) return;
+            
+            let imageSrc = obj.originalSrc;
+            if (obj.originalSrc.startsWith('http')) {
+              try {
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.dataUrl) {
+                    imageSrc = data.dataUrl;
+                  }
+                }
+              } catch (_) {}
+            }
+            
+            if (imageSrc.startsWith('http')) return;
+            
+            const canvasData = await applyCRTToImage(imageSrc, effect.scanline || 60, distortion);
+            if (canvasData) {
+              obj.src = canvasData;
+            }
+            updatePreview();
+          }
+          
+          markPageModified();
+          const pubScreen = document.getElementById('screen-public');
+          if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+        }
+      });
+    }
+
     if (removeEffectBtn) {
       removeEffectBtn.addEventListener('click', () => {
         if (!objectMenuTargetKey) return;
@@ -5399,6 +7617,10 @@ function setupPreviewEditor() {
         }
         
         if (objectHalftoneControls) objectHalftoneControls.style.display = 'none';
+        if (objectCrtControls) objectCrtControls.style.display = 'none';
+        if (window.WIDGET_KEYS.includes(objectMenuTargetKey)) {
+          window.syncWidgetEffect(objectMenuTargetKey);
+        }
         markPageModified();
         const pubScreen = document.getElementById('screen-public');
         if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
@@ -5507,9 +7729,18 @@ const followCursorBtn = document.getElementById('follow-cursor-btn');
     if (effect && effect.type === 'halftone') {
       el.dataset.effectType = 'halftone';
       el.dataset.effectPixelSize = effect.pixelSize || 6;
+      delete el.dataset.effectScanline;
+      delete el.dataset.effectDistortion;
+    } else if (effect && effect.type === 'crt') {
+      el.dataset.effectType = 'crt';
+      el.dataset.effectScanline = effect.scanline || 60;
+      el.dataset.effectDistortion = effect.distortion || 50;
+      delete el.dataset.effectPixelSize;
     } else {
       delete el.dataset.effectType;
       delete el.dataset.effectPixelSize;
+      delete el.dataset.effectScanline;
+      delete el.dataset.effectDistortion;
     }
   }
 
@@ -5548,6 +7779,18 @@ const followCursorBtn = document.getElementById('follow-cursor-btn');
           console.log('No savedSelection to restore');
         }
         const effect = item.dataset.effect;
+        if (effect === 'particles') {
+          if (!menuTargetKey) return;
+          applyParticleEffectToText(menuTargetKey);
+          textEffectsGrid.classList.remove('show');
+          return;
+        }
+        if (effect === 'typewriter') {
+          if (!menuTargetKey) return;
+          applyTypewriterEffectToText(menuTargetKey);
+          textEffectsGrid.classList.remove('show');
+          return;
+        }
         pushHistory();
         const effectStyles = {
           'glow-cyan': { textShadow: '0 0 10px #00ffff, 0 0 20px #00ffff' },
@@ -5559,8 +7802,7 @@ const followCursorBtn = document.getElementById('follow-cursor-btn');
           'mirror': { textShadow: '-2px 0 #ff00ff, 2px 0 #00ffff' },
           'outline': { WebkitTextStroke: '1px #fff' },
           'shadow-dark': { textShadow: '3px 3px 6px rgba(0,0,0,0.8)' },
-          'rainbow': { background: 'linear-gradient(90deg, red, orange, yellow, green, blue, purple)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
-          'typewriter': { display: 'inline-block', overflow: 'hidden', whiteSpace: 'nowrap', borderRight: '2px solid #fff', animation: 'typewriter 2s steps(40) infinite, blink 0.5s step-end infinite' }
+          'rainbow': { background: 'linear-gradient(90deg, red, orange, yellow, green, blue, purple)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }
         };
         const styleMap = effectStyles[effect] || {};
         const applied = applyStyleToSelectedText(menuTargetKey, styleMap);
@@ -5580,6 +7822,92 @@ const followCursorBtn = document.getElementById('follow-cursor-btn');
         }
         textEffectsGrid.classList.remove('show');
       });
+    });
+  }
+
+  const textObjectFxBtn = document.getElementById('text-object-fx-btn');
+  const textObjectFxGrid = document.getElementById('text-object-effects-grid');
+
+  if (textObjectFxBtn && textObjectFxGrid) {
+    textObjectFxBtn.addEventListener('click', () => {
+      textObjectFxGrid.classList.toggle('show');
+    });
+
+    textObjectFxGrid.querySelectorAll('.text-effect-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        if (!menuTargetKey) return;
+        const fx = item.dataset.objectFx;
+        if (!fx) return;
+        pushHistory();
+        if (!state.page.effects) state.page.effects = {};
+        state.page.effects[menuTargetKey] = { type: fx };
+        markPageModified();
+        updatePreview();
+        const pubScreen = document.getElementById('screen-public');
+        if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+        showToast(`Object FX: ${fx}`);
+        textObjectFxGrid.classList.remove('show');
+      });
+    });
+  }
+
+  const removeTextObjectFxBtn = document.getElementById('remove-text-object-fx-btn');
+  if (removeTextObjectFxBtn) {
+    removeTextObjectFxBtn.addEventListener('click', () => {
+      if (!menuTargetKey) return;
+      pushHistory();
+      if (state.page.effects) {
+        delete state.page.effects[menuTargetKey];
+      }
+      markPageModified();
+      updatePreview();
+      const pubScreen = document.getElementById('screen-public');
+      if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+      showToast('Object FX removed');
+      hideTextMenu();
+    });
+  }
+
+  const removeTextEffectBtn = document.getElementById('remove-text-effect-btn');
+  if (removeTextEffectBtn) {
+    removeTextEffectBtn.addEventListener('click', () => {
+      if (!menuTargetKey) return;
+      const el = document.querySelector(`[data-editable="${menuTargetKey}"] .text-content`);
+      if (!el) return;
+      pushHistory();
+
+      const particleOuter = el.querySelector('.particle-text-outer');
+      if (particleOuter) {
+        const canvas = particleOuter.querySelector('.particle-canvas');
+        if (canvas) stopParticleCanvas(canvas);
+        const inner = particleOuter.querySelector('.particle-text-inner');
+        if (inner) while (inner.firstChild) el.appendChild(inner.firstChild);
+        particleOuter.remove();
+      }
+
+      const twSpan = el.querySelector('.tw-typewriter');
+      if (twSpan) {
+        cleanupTypewriter(twSpan);
+        const words = twSpan.dataset.twWords || '';
+        twSpan.textContent = words.split('|')[0] || words;
+      }
+
+      el.querySelectorAll('span').forEach(span => {
+        const parent = span.parentNode;
+        while (span.firstChild) parent.insertBefore(span.firstChild, span);
+        span.remove();
+      });
+
+      syncTextStateFromPreview();
+      if (menuTargetKey.startsWith('obj-')) {
+        const obj = state.page.customObjects.find(o => `obj-${o.id}` === menuTargetKey);
+        if (obj && obj.type === 'text') obj.html = el.innerHTML;
+      }
+      markPageModified();
+      const pubScreen = document.getElementById('screen-public');
+      if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+      showToast('Effect removed');
+      hideTextMenu();
     });
   }
 
@@ -5670,18 +7998,33 @@ function setupLinkContextMenu() {
       const idx = parseInt(key.replace('link-', ''));
       const link = state.page.links[idx];
       if (!link) return;
-      showPromptModal({
-        title: 'Change URL',
-        placeholder: 'https://example.com',
-        value: link.url || '',
-        hint: 'Enter the full URL for this link',
-        onConfirm: (newUrl) => {
-          pushHistory();
-          link.url = newUrl;
-          updatePreview();
-          showToast('URL updated');
-        }
-      });
+      if (link.type === 'copy') {
+        showPromptModal({
+          title: 'Change Address',
+          placeholder: 'Wallet address...',
+          value: link.copyText || '',
+          hint: 'Enter the wallet address to copy',
+          onConfirm: (newVal) => {
+            pushHistory();
+            link.copyText = newVal;
+            updatePreview();
+            showToast('Address updated');
+          }
+        });
+      } else {
+        showPromptModal({
+          title: 'Change URL',
+          placeholder: 'https://example.com',
+          value: link.url || '',
+          hint: 'Enter the full URL for this link',
+          onConfirm: (newUrl) => {
+            pushHistory();
+            link.url = newUrl;
+            updatePreview();
+            showToast('URL updated');
+          }
+        });
+      }
       hideLinkMenu();
     });
   }
@@ -5715,7 +8058,7 @@ function setupLinkContextMenu() {
       const idx = parseInt(key.replace('link-', ''));
       const link = state.page.links[idx];
       if (!link) return;
-      const styles = ['full', 'outline', 'minimal'];
+      const styles = ['full', 'icon'];
       const current = styles.indexOf(link.style || 'full');
       const next = styles[(current + 1) % styles.length];
       pushHistory();
@@ -5864,6 +8207,7 @@ function renderCustomObjects() {
     const div = document.createElement('div');
     div.className = 'custom-object editable';
     div.dataset.editable = key;
+    div.dataset.type = obj.type || 'image';
 
     if (obj.type === 'text') {
       const content = document.createElement('span');
@@ -5878,6 +8222,15 @@ function renderCustomObjects() {
       img.alt = obj.name || 'image';
       img.className = 'custom-object-img';
       div.appendChild(img);
+    }
+
+    if (obj.type === 'text') {
+      const fx = state.page.effects && state.page.effects[key];
+      if (fx) {
+        if (fx.type === 'crt') div.classList.add('text-object-crt');
+        else if (fx.type === 'halftone') div.classList.add('text-object-halftone');
+        else if (fx.type === 'glitch') div.classList.add('text-object-glitch');
+      }
     }
 
     if (obj.animation) {
@@ -5900,6 +8253,75 @@ function renderCustomObjects() {
     stageInner.appendChild(div);
   });
   applyStageObjectLayout();
+  initParticleCanvases(stageInner);
+  initAllTypewriters(stageInner);
+}
+
+function applyCRTToImage(imageSrc, scanline = 60, distortion = 50) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      const maxSize = 800;
+      let W = img.width;
+      let H = img.height;
+      
+      if (W > maxSize || H > maxSize) {
+        const ratio = Math.min(maxSize / W, maxSize / H);
+        W = Math.round(W * ratio);
+        H = Math.round(H * ratio);
+      }
+      
+      canvas.width = W;
+      canvas.height = H;
+      
+      ctx.drawImage(img, 0, 0, W, H);
+      const imageData = ctx.getImageData(0, 0, W, H);
+      const data = imageData.data;
+      
+      const scanlineFactor = scanline / 100;
+      const distortionFactor = distortion / 100;
+      
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          
+          const scanlineDark = (y % 3 === 0) ? (1 - scanlineFactor * 0.45) : 1.0;
+          
+          const subpixel = x % 3;
+          const rm = subpixel === 0 ? (1 + distortionFactor * 0.2) : (1 - distortionFactor * 0.15);
+          const gm = subpixel === 1 ? (1 + distortionFactor * 0.2) : (1 - distortionFactor * 0.15);
+          const bm = subpixel === 2 ? (1 + distortionFactor * 0.2) : (1 - distortionFactor * 0.15);
+          
+          const cx = (x / W) - 0.5;
+          const cy = (y / H) - 0.5;
+          const vignette = 1 - (cx * cx + cy * cy) * 1.8 * distortionFactor;
+          
+          const bleedX = Math.min(x + 1, W - 1);
+          const bi = (y * W + bleedX) * 4;
+          const bleedR = data[bi] * 0.08 * distortionFactor;
+          const bleedG = data[bi + 1] * 0.08 * distortionFactor;
+          const bleedB = data[bi + 2] * 0.08 * distortionFactor;
+          
+          const noise = (Math.random() - 0.5) * 18 * distortionFactor;
+          
+          data[i]     = Math.min(255, Math.max(0, (data[i]     * rm + bleedR + noise) * scanlineDark * Math.max(0.3, vignette)));
+          data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] * gm + bleedG + noise) * scanlineDark * Math.max(0.3, vignette)));
+          data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] * bm + bleedB + noise) * scanlineDark * Math.max(0.3, vignette)));
+        }
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      resolve(null);
+    };
+    img.src = imageSrc;
+  });
 }
 
 function applyHalftoneToImage(imageSrc, pixelSize = 6) {
@@ -5936,11 +8358,13 @@ function applyHalftoneToImage(imageSrc, pixelSize = 6) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
+          const a = data[i + 3] / 255;
+          if (a < 0.05) continue;
           const bright = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
           const radius = (sz / 2) * bright;
           ctx.beginPath();
           ctx.arc(x, y, Math.max(radius, 0.5), 0, Math.PI * 2);
-          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillStyle = `rgba(${r},${g},${b},${a.toFixed(2)})`;
           ctx.fill();
         }
       }
@@ -5954,6 +8378,49 @@ function applyHalftoneToImage(imageSrc, pixelSize = 6) {
   });
 }
 
+async function reapplyHalftoneEffects() {
+  if (!state.page.customObjects || !state.page.effects) return;
+  let needsUpdate = false;
+  for (const obj of state.page.customObjects) {
+    const key = `obj-${obj.id}`;
+    const effect = state.page.effects[key];
+    if (effect && (effect.type === 'halftone' || effect.type === 'crt')) {
+      if (obj.src && obj.src.startsWith('data:')) continue;
+      if (!obj.src) continue;
+      const isGif = obj.src.toLowerCase().endsWith('.gif') || obj.src.toLowerCase().includes('.gif');
+      if (isGif) continue;
+      let imageSrc = obj.src;
+      if (imageSrc.startsWith('http')) {
+        try {
+          const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(imageSrc));
+          if (res.ok) {
+            const data = await res.json();
+            if (data.dataUrl) imageSrc = data.dataUrl;
+          }
+        } catch (_) {}
+      }
+      if (imageSrc.startsWith('http')) continue;
+      let canvasData;
+      if (effect.type === 'halftone') {
+        canvasData = await applyHalftoneToImage(imageSrc, effect.pixelSize || 6);
+      } else {
+        canvasData = await applyCRTToImage(imageSrc, effect.scanline || 60, effect.distortion || 50);
+      }
+      if (canvasData) {
+        obj.originalSrc = obj.src;
+        obj.src = canvasData;
+        needsUpdate = true;
+      }
+    }
+  }
+  if (needsUpdate) {
+    updatePreview();
+    const pubScreen = document.getElementById('screen-public');
+    if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+  }
+  updateAllWidgetEffects();
+}
+
 function renderPublicCustomObjects() {
   const inner = document.querySelector('.public-stage-inner');
   if (!inner) return;
@@ -5964,12 +8431,13 @@ function renderPublicCustomObjects() {
     const key = `obj-${obj.id}`;
     if (isObjectInHiddenLayer(key)) return;
     
-    const box = state.page.layout[key];
+    const box = state.page.layout && state.page.layout[key];
     if (!box) return;
     const div = document.createElement('div');
     div.className = 'custom-object public-custom-object';
     div.dataset.public = key;
     div.dataset.editable = key;
+    div.dataset.type = obj.type || 'image';
 
     const effect = state.page.effects[key];
 
@@ -6003,8 +8471,12 @@ function renderPublicCustomObjects() {
         }
       };
       
-      if (effect && effect.type === 'halftone' && obj.src) {
-        img.src = obj.src;
+      if (effect && (effect.type === 'halftone' || effect.type === 'crt') && obj.src) {
+        if (obj.src.startsWith('data:')) {
+          img.src = obj.src;
+        } else {
+          loadImageWithProxy(obj.src);
+        }
       } else {
         loadImageWithProxy(obj.src);
       }
@@ -6017,6 +8489,12 @@ function renderPublicCustomObjects() {
       const speed = obj.animationSpeed || 1;
       div.style.setProperty('--anim-dur', `${1/speed}s`);
       div.style.animation = `${obj.animation} ${1/speed}s infinite`;
+    }
+
+    if (obj.type === 'text' && effect) {
+      if (effect.type === 'crt') div.classList.add('text-object-crt');
+      else if (effect.type === 'halftone') div.classList.add('text-object-halftone');
+      else if (effect.type === 'glitch') div.classList.add('text-object-glitch');
     }
 
     if (box) {
@@ -6032,6 +8510,16 @@ function renderPublicCustomObjects() {
   });
 
   applyPublicLayerZIndex();
+
+  // Ensure all remaining custom objects have at least z-index 1
+  // so they don't end up behind core elements when not in any layer
+  inner.querySelectorAll('.public-custom-object').forEach(el => {
+    if (!el.style.zIndex || el.style.zIndex === 'auto') {
+      el.style.zIndex = '1';
+    }
+  });
+  initParticleCanvases(inner);
+  initAllTypewriters(inner);
 }
 
 function setupAddObjectMenu() {
@@ -6414,6 +8902,46 @@ function setupPromptModal() {
   }
 }
 
+const BADGE_DEFS = [
+  { name: 'og',     label: 'OG',     everyone: true },
+  { name: 'staff',  label: 'Staff',  users: ['j'] }
+];
+
+function renderBadges(container) {
+  if (!container) return;
+  const old = container.querySelector('.badges-panel');
+  if (old) old.remove();
+  if (!state.page.badgesEnabled) return;
+  const owner = (window.__PUBLIC_USER__ || getPublicSlug() || state.currentUser || '').toLowerCase().replace(/^@/, '');
+  const userBadges = BADGE_DEFS.filter(b =>
+    b.everyone || (b.users && b.users.includes(owner))
+  );
+  if (!userBadges.length) return;
+  const panel = document.createElement('div');
+  panel.className = 'badges-panel';
+  panel.style.marginLeft = '18px';
+  if (state.page.badgesGlow) panel.classList.add('badges-glow');
+  if (state.page.badgesColorName) {
+    const glowColorMap = { white: '#fff', black: '#000', red: '#ff3232', blue: '#3282ff', gold: '#ffd700', green: '#32c864', pink: '#ff50b4', purple: '#a050ff' };
+    panel.style.setProperty('--badge-color', glowColorMap[state.page.badgesColorName] || '#fff');
+  }
+  const colorSuffix = state.page.badgesColorName ? '_' + state.page.badgesColorName : '';
+  for (const b of userBadges) {
+    const src = '/Badges/' + b.name + colorSuffix + '.webp';
+    const wrapper = document.createElement('span');
+    wrapper.className = 'badge-icon-wrapper';
+    wrapper.dataset.label = b.label;
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = b.label;
+    img.title = b.label;
+    img.className = 'badge-icon';
+    wrapper.appendChild(img);
+    panel.appendChild(wrapper);
+  }
+  container.appendChild(panel);
+}
+
 function updatePreview() {
   if (state.currentUser && !pageModified) {
     if (checkPageModified()) {
@@ -6452,14 +8980,16 @@ function updatePreview() {
   ensureRotateHandle(bioEl);
   
   const avatarEl = document.getElementById('prev-avatar');
-  avatarEl.style.display = isObjectDeleted('avatar') ? 'none' : '';
-  if (state.page.avatar) {
-    avatarEl.innerHTML = `<img src="${state.page.avatar}" alt="Avatar" class="page-avatar-image" />`;
-  } else {
-    avatarEl.innerHTML = `<img src="default_pfp.png" alt="Avatar" class="page-avatar-image" />`;
+  if (avatarEl) {
+    avatarEl.style.display = isObjectDeleted('avatar') ? 'none' : '';
+    if (state.page.avatar) {
+      avatarEl.innerHTML = `<img src="${state.page.avatar}" alt="Avatar" class="page-avatar-image" />`;
+    } else {
+      avatarEl.innerHTML = `<img src="default_pfp.png" alt="Avatar" class="page-avatar-image" />`;
+    }
+    ensureResizeHandle(avatarEl);
+    ensureRotateHandle(avatarEl);
   }
-  ensureResizeHandle(avatarEl);
-  ensureRotateHandle(avatarEl);
   renderPreviewLinks();
   renderCustomObjects();
   applyLayerZIndex();
@@ -6483,12 +9013,36 @@ function updatePreview() {
   console.log('[Tilt3D Profile] updatePreview calling syncTilt3DProfileToggle');
   if (window.syncTilt3DProfileToggle) window.syncTilt3DProfileToggle();
 
-  // Show resize handle for phone in builder
-  const resizeHandle = frame.querySelector('.resize-handle');
-  if (resizeHandle) {
-    resizeHandle.style.opacity = '1';
-    resizeHandle.style.visibility = 'visible';
+  if (frame) {
+    // Show resize handle for phone in builder
+    const resizeHandle = frame.querySelector('.resize-handle');
+    if (resizeHandle) {
+      resizeHandle.style.opacity = '1';
+      resizeHandle.style.visibility = 'visible';
+    }
+
+    // Re-apply bg class and btn style to builder frame
+    frame.className = frame.className.replace(/bg-\S+/g, '').trim();
+    frame.classList.add(state.page.bg);
+    if (state.page.btnStyle) frame.classList.add(state.page.btnStyle);
+    frame.style.setProperty('--page-accent', state.page.accentColor);
+    const afterBg = (frame.className.match(/bg-\w+/g) || []).join(' ');
+    console.log('[updatePreview] after apply: bg:', afterBg, 'btnStyle:', state.page.btnStyle);
+
+    // Re-apply font & size
+    const prevName = document.getElementById('prev-name');
+    if (prevName) {
+      prevName.style.fontFamily = `'${state.page.font}', sans-serif`;
+      prevName.style.fontSize   = state.page.nameSize + 'px';
+      prevName.style.display = isObjectDeleted('name') ? 'none' : '';
+      renderBadges(prevName);
+    }
+  const prevBio = document.getElementById('prev-bio');
+  if (prevBio) {
+    prevBio.style.display = isObjectDeleted('bio') ? 'none' : '';
   }
+  renderFloorSwitcher();
+}
 
   // Apply custom frame overlay if exists
   const publicOverlay = document.getElementById('public-frame-overlay');
@@ -6502,27 +9056,15 @@ function updatePreview() {
     }
   }
 
-  // Re-apply bg class and btn style to builder frame
-  if (frame) {
-    frame.className = frame.className.replace(/bg-\S+/g, '').trim();
-    frame.classList.add(state.page.bg);
-    if (state.page.btnStyle) frame.classList.add(state.page.btnStyle);
-    frame.style.setProperty('--page-accent', state.page.accentColor);
-    const afterBg = (frame.className.match(/bg-\w+/g) || []).join(' ');
-    console.log('[updatePreview] after apply: bg:', afterBg, 'btnStyle:', state.page.btnStyle);
-  }
-
-  // Re-apply font & size
-  document.getElementById('prev-name').style.fontFamily = `'${state.page.font}', sans-serif`;
-  document.getElementById('prev-name').style.fontSize   = state.page.nameSize + 'px';
-  document.getElementById('prev-name').style.display = isObjectDeleted('name') ? 'none' : '';
-  document.getElementById('prev-bio').style.display = isObjectDeleted('bio') ? 'none' : '';
   applyBackgroundImages();
+  applyBackgroundEffect();
+  applyFadeIn();
 
   // Apply layout with requestAnimationFrame to ensure DOM is ready
   requestAnimationFrame(() => {
     applyPhoneLayout();
     applyLayout();
+    applyPhoneBlur();
   });
 
   ['avatar', 'name', 'bio'].forEach(key => {
@@ -6548,14 +9090,208 @@ function updatePreview() {
   }
 updatePreviewSpotifyWidget();
   renderDiscordWidget('preview-discord-widget-container');
+  updateCustomPlayerPreview();
+  updateAllWidgetEffects();
+  initAllTypewriters(document.getElementById('prev-name'));
+  initAllTypewriters(document.getElementById('prev-bio'));
 }
 
-// Unified Discord widget renderer
+/* ================================================
+   LANYARD — real-time Discord presence via WebSocket
+   ================================================ */
+const lanyardState = { ws: null, connecting: false, subscribedId: null, heartbeat: null, presence: null, pollInterval: null, wsRetries: 0, maxWsRetries: 3 };
+
+function getDiscordPresence() {
+  return lanyardState.presence;
+}
+
+function getDiscordStatus() {
+  const p = lanyardState.presence;
+  if (!p) return 'offline';
+  if (p.discord_status === 'dnd') return 'dnd';
+  return p.discord_status || 'offline';
+}
+
+function lanyardHeartbeat(ws, interval) {
+  if (lanyardState.heartbeat) clearInterval(lanyardState.heartbeat);
+  lanyardState.heartbeat = setInterval(() => {
+    try { ws.send(JSON.stringify({ op: 3 })); } catch (_) {}
+  }, interval);
+}
+
+async function fetchLanyardRest(discordId) {
+  try {
+    const res = await fetch(`https://api.lanyard.rest/v1/users/${discordId}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      lanyardState.presence = json.data;
+      updateDiscordWidgets();
+    }
+  } catch (_) {}
+}
+
+function startLanyardPolling(discordId) {
+  if (lanyardState.pollInterval) clearInterval(lanyardState.pollInterval);
+  fetchLanyardRest(discordId);
+  lanyardState.pollInterval = setInterval(() => fetchLanyardRest(discordId), 30000);
+}
+
+function stopLanyardPolling() {
+  if (lanyardState.pollInterval) {
+    clearInterval(lanyardState.pollInterval);
+    lanyardState.pollInterval = null;
+  }
+}
+
+function initLanyard(discordId) {
+  if (!discordId) return;
+  if (lanyardState.subscribedId === discordId && lanyardState.ws && (lanyardState.ws.readyState === WebSocket.OPEN || lanyardState.ws.readyState === WebSocket.CONNECTING)) return;
+  if (lanyardState.ws) {
+    if (lanyardState.heartbeat) clearInterval(lanyardState.heartbeat);
+    if (lanyardState.ws.readyState === WebSocket.OPEN || lanyardState.ws.readyState === WebSocket.CLOSING) {
+      try { lanyardState.ws.close(); } catch (_) {}
+    } else if (lanyardState.ws.readyState === WebSocket.CONNECTING) {
+      lanyardState.ws.onopen = null;
+      lanyardState.ws.onclose = null;
+      lanyardState.ws.onerror = null;
+      lanyardState.ws.onmessage = null;
+      try { lanyardState.ws.close(); } catch (_) {}
+    }
+  }
+  if (lanyardState.subscribedId !== discordId) {
+    lanyardState.wsRetries = 0;
+  }
+  lanyardState.subscribedId = discordId;
+  lanyardState.presence = null;
+  lanyardState.connecting = true;
+
+  startLanyardPolling(discordId);
+
+  try {
+    lanyardState.ws = new WebSocket('wss://api.lanyard.rest/socket');
+    lanyardState.ws.onopen = () => {
+      lanyardState.ws.send(JSON.stringify({ op: 2, d: { subscribe_to_id: discordId } }));
+    };
+    lanyardState.ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.op === 1) {
+          lanyardHeartbeat(lanyardState.ws, msg.d.heartbeat_interval);
+          lanyardState.ws.send(JSON.stringify({ op: 2, d: { subscribe_to_id: discordId } }));
+        } else if (msg.op === 0) {
+          if (msg.t === 'INIT_STATE' || msg.t === 'PRESENCE_UPDATE') {
+            lanyardState.presence = msg.d;
+            if (typeof updateDiscordWidgets === 'function') updateDiscordWidgets();
+          }
+        }
+      } catch (_) {}
+    };
+    lanyardState.ws.onclose = () => {
+      if (lanyardState.heartbeat) clearInterval(lanyardState.heartbeat);
+      lanyardState.connecting = false;
+      lanyardState.wsRetries++;
+      if (lanyardState.subscribedId === discordId && lanyardState.wsRetries < lanyardState.maxWsRetries) {
+        setTimeout(() => initLanyard(discordId), 10000);
+      }
+    };
+    lanyardState.ws.onerror = () => {
+      if (lanyardState.ws) try { lanyardState.ws.close(); } catch (_) {}
+    };
+  } catch (_) {}
+}
+
+/* ================================================
+   DISCORD BADGES (SVG sprite)
+   ================================================ */
+const DISCORD_BADGES = [
+  { bit: 1, label: 'Staff', id: 'badge-staff', cls: '' },
+  { bit: 2, label: 'Partner', id: 'badge-partner', cls: '' },
+  { bit: 4, label: 'HypeSquad Events', id: 'badge-hypesquad', cls: '' },
+  { bit: 8, label: 'Bug Hunter L1', id: 'badge-bughunter', cls: '' },
+  { bit: 64, label: 'HypeSquad Bravery', id: 'badge-bravery', cls: '' },
+  { bit: 128, label: 'HypeSquad Brilliance', id: 'badge-brilliance', cls: '' },
+  { bit: 256, label: 'HypeSquad Balance', id: 'badge-balance', cls: '' },
+  { bit: 512, label: 'Early Supporter', id: 'badge-earlysupporter', cls: '' },
+  { bit: 16384, label: 'Bug Hunter L2', id: 'badge-bughunter2', cls: '' },
+  { bit: 65536, label: 'Early Verified Bot Developer', id: 'badge-earlybotdev', cls: '' },
+  { bit: 131072, label: 'Active Developer', id: 'badge-activedev', cls: '' }
+];
+
+const PREMIUM_BADGES = {
+  1: { label: 'Nitro Classic', id: 'badge-nitro-classic', cls: 'discord-badge-premium' },
+  2: { label: 'Nitro', id: 'badge-nitro', cls: 'discord-badge-premium' },
+  3: { label: 'Nitro Basic', id: 'badge-nitro-basic', cls: 'discord-badge-premium' }
+};
+
+const BADGE_SVG_MAP = {
+  'badge-staff': 'discordstaff.svg',
+  'badge-partner': 'discordpartner.svg',
+  'badge-hypesquad': 'hypesquadevents.svg',
+  'badge-bughunter': 'discordbughunter1.svg',
+  'badge-bravery': 'hypesquadbravery.svg',
+  'badge-brilliance': 'hypesquadbrilliance.svg',
+  'badge-balance': 'hypesquadbalance.svg',
+  'badge-earlysupporter': 'discordearlysupporter.svg',
+  'badge-bughunter2': 'discordbughunter2.svg',
+  'badge-earlybotdev': 'discordbotdev.svg',
+  'badge-activedev': 'activedeveloper.svg',
+  'badge-nitro': 'discordnitro.svg',
+  'badge-nitro-classic': 'discordnitro.svg',
+  'badge-nitro-basic': 'discordnitro.svg'
+};
+
+function badgeIcon(id) {
+  const file = BADGE_SVG_MAP[id] || 'discordnitro.svg';
+  return `<img class="discord-badge-icon" src="/DiscordSVG/${file}" alt="" aria-hidden="true">`;
+}
+
+function ensureDiscordSprite() {}
+
+function renderDiscordBadges(publicFlags, premiumType) {
+  ensureDiscordSprite();
+  const parts = [];
+  if (premiumType && PREMIUM_BADGES[premiumType]) {
+    const b = PREMIUM_BADGES[premiumType];
+    parts.push(`<span class="discord-badge ${b.cls}" title="${b.label}">${badgeIcon(b.id)}</span>`);
+  }
+  for (const badge of DISCORD_BADGES) {
+    if (publicFlags & badge.bit) {
+      parts.push(`<span class="discord-badge ${badge.cls}" title="${badge.label}">${badgeIcon(badge.id)}</span>`);
+    }
+  }
+  return parts.join('');
+}
+
+function getStatusClass(status) {
+  switch (status) {
+    case 'online': return 'online';
+    case 'idle': return 'idle';
+    case 'dnd': return 'dnd';
+    default: return 'offline';
+  }
+}
+
+function getStatusLabel(status) {
+  switch (status) {
+    case 'online': return 'Online';
+    case 'idle': return 'Idle';
+    case 'dnd': return 'Do Not Disturb';
+    default: return 'Offline';
+  }
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Unified Discord widget renderer (with Lanyard presence + badges + activity)
 function renderDiscordWidget(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // Show widget only if Discord is linked and widget is enabled
   const enabled = state.page.discordWidgets && state.page.discord && state.page.discord.id;
   if (!enabled) {
     container.style.display = 'none';
@@ -6564,19 +9300,82 @@ function renderDiscordWidget(containerId) {
   }
 
   const d = state.page.discord;
-  const avatarUrl = d.avatar ? `https://cdn.discordapp.com/avatars/${d.id}/${d.avatar}.png` : '';
-  const discriminator = d.discriminator ? `#${d.discriminator}` : '';
-  const statusHtml = `<div class="discord-widget-status"><span class="discord-widget-status-indicator online"></span>Online</div>`;
-  const discordIcon = `<svg class="discord-widget-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M22.7 2.5c-5.2-2.2-10.4-2.2-15.6 0-0.5 0.2-0.7 0.8-0.5 1.2l1.5 2.8c-2.7 0.8-5.2 2-7.4 3.7-0.5 0.4-0.5 1.2 0 1.6l2.3 2.1c-0.1 0.5-0.2 1-0.2 1.5 0 0.5 0.1 1 0.2 1.5l-2.3 2.1c-0.5 0.5-0.5 1.2 0 1.6 2.2 1.7 4.8 2.9 7.5 3.7l-1.5 2.8c-0.2 0.5 0.1 1 0.5 1.2 2.6 1.1 5.4 1.7 8.2 1.7 2.8 0 5.5-0.6 8.2-1.7 0.5-0.2 0.7-0.8 0.5-1.2l-1.5-2.8c2.7-0.8 5.2-2 7.4-3.7 0.5-0.4 0.5-1.2 0-1.6l-2.3-2.1c0.1-0.5 0.2-1 0.2-1.5 0-0.5-0.1-1-0.2-1.5l2.3-2.1c0.5-0.5 0.5-1.2 0-1.6-2.2-1.7-4.8-2.9-7.5-3.7l1.5-2.8c0.2-0.5-0.1-1-0.5-1.2zM17 10c-1.1 0-2 0.9-2 2 0 1.2 0.9 2 2 2 1.1 0 2-0.9 2-2 0-1.1-0.9-2-2-2zm-6 0c-1.1 0-2 0.9-2 2 0 1.2 0.9 2 2 2 1.1 0 2-0.9 2-2 0-1.1-0.9-2-2-2z"/></svg>`;
+  const presence = getDiscordPresence();
+  const status = presence ? getDiscordStatus() : 'offline';
+  const statusClass = getStatusClass(status);
+  const statusLabel = getStatusLabel(status);
+  const avatarHash = d.avatar;
+  const avatarUrl = avatarHash
+    ? `https://cdn.discordapp.com/avatars/${d.id}/${avatarHash}.png`
+    : `https://cdn.discordapp.com/embed/avatars/${(Number(d.discriminator) || 0) % 5}.png`;
+  const discriminator = d.discriminator && d.discriminator !== '0' ? `#${d.discriminator}` : '';
+  const discordUser = presence && presence.discord_user;
+  const displayName = (discordUser && discordUser.global_name) || d.global_name || d.username || '';
+  const scale = state.page.discordWidgetScale ?? 1;
+  const opacity = state.page.discordWidgetOpacity ?? 1;
+  const bgColor = state.page.discordWidgetBgColor || '#1a1a1a';
+  const publicFlags = d.public_flags || 0;
+  const premiumType = d.premium_type || 0;
+  const badgesHtml = renderDiscordBadges(publicFlags, premiumType);
+
+  let customStatusHtml = '';
+  let rightActivityHtml = '';
+  if (presence) {
+    const customLines = [];
+    const activityLabels = [];
+    if (presence.activities) {
+      for (const act of presence.activities) {
+        if (act.type === 4) {
+          if (act.state) customLines.push(`<div class="discord-widget-activity discord-widget-custom-status">${escapeHtml(act.state)}</div>`);
+        } else if (act.type === 0) {
+          activityLabels.push(`playing`);
+          activityLabels.push(escapeHtml(act.name));
+        } else if (act.type === 3) {
+          activityLabels.push(`watching`);
+          activityLabels.push(escapeHtml(act.name));
+        } else if (act.type === 5) {
+          activityLabels.push(`competing`);
+          activityLabels.push(escapeHtml(act.name));
+        }
+      }
+    }
+    if (presence.listening_to_spotify && presence.spotify) {
+      const s = presence.spotify;
+      activityLabels.push(`listening`);
+      activityLabels.push(escapeHtml(s.song));
+    }
+    customStatusHtml = customLines.join('');
+    if (activityLabels.length) {
+      const items = [];
+      for (let i = 0; i < activityLabels.length; i += 2) {
+        items.push(`<div class="discord-widget-activity-right-item"><span class="discord-widget-activity-right-label">${activityLabels[i]}</span><span class="discord-widget-activity-right-name">${activityLabels[i + 1]}</span></div>`);
+      }
+      rightActivityHtml = `<div class="discord-widget-activity-right">${items.join('')}</div>`;
+    }
+  }
+
   container.innerHTML = `
-    <img class="discord-widget-avatar" src="${avatarUrl}" alt="Discord avatar">
-    <div class="discord-widget-info">
-      <div class="discord-widget-username">${d.username || ''}${discriminator}</div>
-      ${statusHtml}
+    <div class="discord-widget-inner" style="transform:scale(${scale});transform-origin:top left;display:flex;align-items:center;gap:10px;width:100%;height:100%;">
+      <div class="discord-widget-avatar-wrapper">
+        <img class="discord-widget-avatar" src="${avatarUrl}" alt="Discord avatar" loading="lazy">
+        <span class="discord-widget-status-indicator ${statusClass}"></span>
+      </div>
+      <div class="discord-widget-info">
+        <div class="discord-widget-name-row">
+          <div class="discord-widget-username">${escapeHtml(displayName)}${discriminator ? ' <span class="discord-widget-discriminator">' + escapeHtml(discriminator) + '</span>' : ''}</div>
+          <div class="discord-widget-badges">${badgesHtml}</div>
+        </div>
+        <div class="discord-widget-status">${statusLabel}</div>
+        ${customStatusHtml}
+      </div>
+      ${rightActivityHtml}
     </div>
-    ${discordIcon}
   `;
   container.style.display = 'flex';
+  container.style.background = hexToRgba(bgColor, opacity);
+  if (typeof ensureResizeHandle === 'function') ensureResizeHandle(container);
+
+  if (d.id) initLanyard(d.id);
 }
 
 // Update both public and preview Discord widgets
@@ -6612,6 +9411,7 @@ let toastTimer = null;
 
 function showToast(msg) {
   const toast = document.getElementById('toast');
+  if (!toast) return;
   toast.textContent = msg;
   toast.classList.add('show');
 
@@ -6619,11 +9419,75 @@ function showToast(msg) {
   toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
 }
 
+function copyToClipboardWithToast(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copy to clipboard!');
+      }).catch(() => {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  } catch (e) {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch (e) {}
+  showToast('Copy to clipboard!');
+}
+
 /* ================================================
    GLOBAL CLICK DELEGATION
    ================================================ */
 function setupGlobalActions() {
   console.log('setupGlobalActions called - registering document click');
+
+  // Progress bar seeking
+  document.addEventListener('click', e => {
+    const wrap = e.target.closest('.cpw-progress-wrap');
+    if (wrap) {
+      const audio = document.getElementById('custom-player-audio');
+      if (audio && audio.duration) {
+        const rect = wrap.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        audio.currentTime = pct * audio.duration;
+      }
+    }
+  });
+
+  // Custom player volume slider
+  document.addEventListener('input', e => {
+    const slider = e.target.closest('.cpw-volume-slider');
+    if (!slider) return;
+    const vol = Number(slider.value) / 100;
+    const audio = document.getElementById('custom-player-audio');
+    if (audio) audio.volume = vol;
+    const pctEl = slider.parentElement.querySelector('.cpw-vol-pct');
+    if (pctEl) pctEl.textContent = `${Math.round(vol * 100)}%`;
+    const icon = slider.parentElement.querySelector('.cpw-vol-icon');
+    if (icon) icon.textContent = vol === 0 ? '🔇' : vol < 0.5 ? '🔉' : '🔊';
+    if (state.page.customPlayer) {
+      state.page.customPlayer.volume = vol;
+      const sidebarSlider = document.getElementById('custom-player-volume');
+      if (sidebarSlider) sidebarSlider.value = slider.value;
+      const sidebarVal = document.getElementById('custom-player-volume-val');
+      if (sidebarVal) sidebarVal.textContent = `${slider.value}%`;
+    }
+  });
+
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-action]');
     if (!el) return;
@@ -6650,6 +9514,25 @@ function setupGlobalActions() {
         showScreen('landing');
         break;
 
+      case 'toggle-user-menu':
+        toggleUserMenu();
+        break;
+
+      case 'change-password':
+        document.getElementById('user-menu').classList.remove('show');
+        document.getElementById('cp-forgot-wrap').style.display = 'block';
+        showScreen('change-password');
+        break;
+
+      case 'toggle-2fa':
+        document.getElementById('user-menu').classList.remove('show');
+        handle2FAAction();
+        break;
+
+      case 'forgot-password':
+        showForgotPasswordFlow();
+        break;
+
       case 'goto-dashboard':
         showScreen('dashboard');
         break;
@@ -6662,9 +9545,41 @@ function setupGlobalActions() {
         toggleAnalyticsPanel();
         break;
 
+      case 'toggle-ids':
+        toggleIdsSection();
+        break;
+
+      case 'delete-id':
+        showDeleteStep1(el.dataset.alias);
+        break;
+
       case 'goto-public':
         const slug = getPublicSlug();
         window.open('/' + slug, '_blank');
+        break;
+
+      case 'open-templates':
+        toggleTemplatesSection();
+        break;
+
+      case 'create-template':
+        openCreateTemplateModal();
+        break;
+
+      case 'close-template-modal':
+        closeTemplateModal();
+        break;
+
+      case 'apply-template':
+        applyTemplate();
+        break;
+
+      case 'close-create-template':
+        closeCreateTemplateModal();
+        break;
+
+      case 'save-template':
+        createTemplateFromProfile();
         break;
 
       case 'logout':
@@ -6681,6 +9596,27 @@ function setupGlobalActions() {
 
       case 'publish-page':
         publishPage();
+        break;
+
+      case 'cp-toggle':
+        const audio = document.getElementById('custom-player-audio');
+        if (!audio) break;
+        if (audio.paused) {
+          audio.play();
+        } else {
+          audio.pause();
+        }
+        el.textContent = audio.paused ? '▶' : '⏸';
+        break;
+
+      case 'cp-prev':
+        const audioPrev = document.getElementById('custom-player-audio');
+        if (audioPrev) audioPrev.currentTime = Math.max(0, (audioPrev.currentTime || 0) - 10);
+        break;
+
+      case 'cp-next':
+        const audioNext = document.getElementById('custom-player-audio');
+        if (audioNext) audioNext.currentTime = Math.min(audioNext.duration || 0, (audioNext.currentTime || 0) + 10);
         break;
 
       default:
@@ -7840,8 +10776,182 @@ function applyPublicLayerZIndex() {
 }
 
 /* ================================================
+   FLOORS — multi-floor page system
+   Each floor has its own builder state (layout, displayName, bio, etc.)
+   Floor 0 = the main state.page itself (no separate storage)
+   Floors 1 & 2 = stored in state.page.floors[0] & state.page.floors[1]
+   ================================================ */
+
+function getFloorData(floorIndex) {
+  if (floorIndex === 0) {
+    if (state.page.activeFloor === 0) return state.page;
+    const backup = state.page.floors[0];
+    if (backup && backup.layout) return backup;
+    return state.page;
+  }
+  let data = state.page.floors[floorIndex];
+  if (!data || !data.layout) {
+    const def = getDefaultPageData();
+    data = {};
+    FLOOR_FIELDS.forEach(k => { data[k] = JSON.parse(JSON.stringify(def[k])); });
+    state.page.floors[floorIndex] = data;
+  }
+  return data;
+}
+
+function saveCurrentFloor() {
+  const idx = state.page.activeFloor;
+  const target = {};
+  FLOOR_FIELDS.forEach(k => { target[k] = JSON.parse(JSON.stringify(state.page[k])); });
+  state.page.floors[idx] = target;
+}
+
+function loadFloor(floorIndex) {
+  if (floorIndex === 0) {
+    const backup = state.page.floors[0];
+    if (backup && backup.layout) {
+      FLOOR_FIELDS.forEach(k => {
+        if (backup[k] !== undefined && backup[k] !== null) {
+          state.page[k] = JSON.parse(JSON.stringify(backup[k]));
+        }
+      });
+    }
+  } else {
+    const data = getFloorData(floorIndex);
+    FLOOR_FIELDS.forEach(k => {
+      if (data[k] !== undefined && data[k] !== null) {
+        state.page[k] = JSON.parse(JSON.stringify(data[k]));
+      }
+    });
+  }
+  state.page.activeFloor = floorIndex;
+}
+
+function switchToFloor(targetFloor) {
+  const current = state.page.activeFloor;
+  if (current === targetFloor) return;
+
+  pushHistory();
+  saveCurrentFloor();
+  loadFloor(targetFloor);
+
+  // Sync UI
+  const bioInput = document.getElementById('edit-bio');
+  const nameInput = document.getElementById('edit-display-name');
+  if (nameInput) nameInput.value = state.page.displayName || '';
+  if (bioInput) bioInput.value = state.page.bio || '';
+
+  // Sync all sidebar inputs
+  syncAllSidebarFromState();
+
+  updatePreview();
+  renderFloorSwitcher();
+  markPageModified();
+}
+
+function renderFloorSwitcher() {
+  const container = document.getElementById('floor-switcher');
+  if (!container) return;
+
+  if (!state.page.bioLayersEnabled) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = '';
+  container.innerHTML = '';
+
+  const totalFloors = 3;
+  for (let i = 0; i < totalFloors; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'floor-switcher-btn' + (i === state.page.activeFloor ? ' active' : '');
+    btn.textContent = `Floor ${i + 1}`;
+    btn.dataset.floor = i;
+    btn.addEventListener('click', () => switchToFloor(i));
+    container.appendChild(btn);
+  }
+}
+
+// Public page: floors are NOT stacked — only published floor is shown
+// (multi-floor is a builder-only feature; each floor is a standalone page version)
+
+// Sync sidebar when switching floors
+function syncAllSidebarFromState() {
+  // Avatar
+  if (window.__updateAvatarUI) window.__updateAvatarUI();
+
+  // Links
+  const linksList = document.getElementById('links-list');
+  if (linksList && window.renderLinksList) renderLinksList();
+
+  // Custom objects
+  if (window.renderCustomObjects) renderCustomObjects();
+
+  // Layers
+  if (window.renderLayersList) renderLayersList();
+
+  // Discord
+  const discordToggle = document.getElementById('discord-widget-toggle');
+  if (discordToggle) {
+    discordToggle.textContent = state.page.discordWidgets ? 'On' : 'Off';
+    discordToggle.classList.toggle('btn--active', !!state.page.discordWidgets);
+  }
+
+  // Fade in
+  const fadeToggle = document.getElementById('fade-in-toggle');
+  if (fadeToggle) {
+    fadeToggle.textContent = state.page.fadeIn ? 'On' : 'Off';
+    fadeToggle.classList.toggle('btn--active', !!state.page.fadeIn);
+  }
+
+  // Font
+  const fontOptions = document.querySelectorAll('#font-options .option-item');
+  fontOptions.forEach(el => {
+    el.classList.toggle('active', el.dataset.font === state.page.font);
+  });
+
+  // Name size
+  const nameSizeSlider = document.getElementById('name-size-slider');
+  const nameSizeVal = document.getElementById('name-size-val');
+  if (nameSizeSlider) nameSizeSlider.value = state.page.nameSize || 22;
+  if (nameSizeVal) nameSizeVal.textContent = (state.page.nameSize || 22) + 'px';
+
+  // Badges
+  const badgesToggle = document.getElementById('badges-toggle');
+  if (badgesToggle) {
+    badgesToggle.textContent = state.page.badgesEnabled ? 'On' : 'Off';
+    badgesToggle.classList.toggle('btn--active', !!state.page.badgesEnabled);
+  }
+
+  // Click to enter
+  const cteToggle = document.getElementById('click-to-enter-toggle');
+  const cteText = document.getElementById('click-to-enter-text');
+  const cteControls = document.getElementById('click-to-enter-controls');
+  const cte = state.page.clickToEnter || {};
+  if (cteToggle) {
+    const cteEnabled = cte.enabled === true || cte === true;
+    cteToggle.textContent = cteEnabled ? 'On' : 'Off';
+    cteToggle.classList.toggle('btn--active', cteEnabled);
+  }
+  if (cteControls) {
+    cteControls.style.display = (cte.enabled === true || cte === true) ? 'block' : 'none';
+  }
+  if (cteText) {
+    cteText.value = cte.text || state.page.clickToEnterText || 'Click to enter';
+  }
+}
+
+function setupPublicFloorSystem() {
+  renderFloorSwitcher();
+}
+
+/* ================================================
    INIT
    ================================================ */
+function safeSetup(fn, name) {
+  try { fn(); } catch (e) { console.warn('setup ' + name + ' failed:', e.message); }
+}
+
 function init() {
   if (_initRan) return;
   _initRan = true;
@@ -7850,53 +10960,65 @@ function init() {
   // If this is a public page (has page data), handle it immediately
   if (window.__PAGE_DATA__) {
     console.log('Public page detected, initializing...');
-    setupGlobalActions();
-    setupClickToEnterOverlay();
-    setupCursorTrail();
-    setupHistoryRouting();
+    preloadAllSocialSvgs().then(() => {
+      safeSetup(setupGlobalActions, 'setupGlobalActions');
+      safeSetup(setupClickToEnterOverlay, 'setupClickToEnterOverlay');
+      safeSetup(setupCursorTrail, 'setupCursorTrail');
+      safeSetup(setupHistoryRouting, 'setupHistoryRouting');
+    });
     return;
   }
-  
-  initSmartGuides();
-  setupLayers();
-  setupHistoryRouting();
-  setupGlobalActions();
-  setupAuth();
-  setupDiscord();
-  setupWidgets();
-  setupSpotifyWidget();
-  setupBuilderNav();
-  setupAvatarUpload();
-  setupClickToEnter();
-  setupMusicUpload();
-  setupMusicDemoControls();
-  setupLinks();
-  setupBackground();
-  setupBackgroundOpacityControls();
-  setupBackgroundImageUploads();
-  setupButtonStyles();
-  setupAccentColors();
-  setupTextOptions();
-  setupAddFonts();
-  setupCursorUpload();
-  setupProfileInputs();
-  setupClickToEnter();
-  setupClickToEnterOverlay();
-  setupTilt3DProfileToggle();
-  setupPreviewTools();
-  setupPreviewPanZoom();
-  setupPreviewEditor();
-  setupLinkContextMenu();
-  setupPhoneBackgroundContextMenu();
-  setupPhoneContextMenu();
-  setupAddObjectMenu();
-  setupPromptModal();
-  setupCursorTrail();
-  setupPublicPageResponsiveScale();
-  setupKeyboard();
-  setupKeyboardShortcuts();
 
-  renderLinksList();
+  preloadAllSocialSvgs();
+  safeSetup(initSmartGuides, 'initSmartGuides');
+  safeSetup(setupLayers, 'setupLayers');
+  safeSetup(setupHistoryRouting, 'setupHistoryRouting');
+  safeSetup(setupGlobalActions, 'setupGlobalActions');
+  safeSetup(setupAuth, 'setupAuth');
+  safeSetup(setupDiscord, 'setupDiscord');
+  safeSetup(setupWidgets, 'setupWidgets');
+  safeSetup(setupSpotifyWidget, 'setupSpotifyWidget');
+  safeSetup(setupBuilderNav, 'setupBuilderNav');
+  safeSetup(setupAvatarUpload, 'setupAvatarUpload');
+  safeSetup(setupClickToEnter, 'setupClickToEnter');
+  safeSetup(setupMusicUpload, 'setupMusicUpload');
+  safeSetup(setupMusicDemoControls, 'setupMusicDemoControls');
+  safeSetup(setupLinks, 'setupLinks');
+  safeSetup(setupLinkIcons, 'setupLinkIcons');
+  safeSetup(setupBackground, 'setupBackground');
+  safeSetup(setupBackgroundOpacityControls, 'setupBackgroundOpacityControls');
+  safeSetup(setupBackgroundEffects, 'setupBackgroundEffects');
+  safeSetup(setupBackgroundImageUploads, 'setupBackgroundImageUploads');
+  safeSetup(setupButtonStyles, 'setupButtonStyles');
+  safeSetup(setupAccentColors, 'setupAccentColors');
+  safeSetup(setupTextOptions, 'setupTextOptions');
+  safeSetup(setupAddFonts, 'setupAddFonts');
+  safeSetup(setupCursorUpload, 'setupCursorUpload');
+  safeSetup(setupProfileInputs, 'setupProfileInputs');
+  safeSetup(setupPublicFloorSystem, 'setupPublicFloorSystem');
+  safeSetup(setupClickToEnterOverlay, 'setupClickToEnterOverlay');
+  safeSetup(setupTilt3DProfileToggle, 'setupTilt3DProfileToggle');
+  safeSetup(setupBadgesSettings, 'setupBadgesSettings');
+  safeSetup(setupIconsColorSettings, 'setupIconsColorSettings');
+  safeSetup(setupPreviewTools, 'setupPreviewTools');
+  safeSetup(setupPreviewPanZoom, 'setupPreviewPanZoom');
+  safeSetup(setupPreviewEditor, 'setupPreviewEditor');
+  safeSetup(setupLinkContextMenu, 'setupLinkContextMenu');
+  safeSetup(setupPhoneBackgroundContextMenu, 'setupPhoneBackgroundContextMenu');
+  safeSetup(setupPhoneContextMenu, 'setupPhoneContextMenu');
+  safeSetup(setupAddObjectMenu, 'setupAddObjectMenu');
+  safeSetup(setupPromptModal, 'setupPromptModal');
+  safeSetup(setupCursorTrail, 'setupCursorTrail');
+  safeSetup(setupPublicPageResponsiveScale, 'setupPublicPageResponsiveScale');
+  safeSetup(setupKeyboard, 'setupKeyboard');
+  safeSetup(setupKeyboardShortcuts, 'setupKeyboardShortcuts');
+  safeSetup(setupIdsInput, 'setupIdsInput');
+  safeSetup(setupIdsCopyButtons, 'setupIdsCopyButtons');
+  safeSetup(setupIdsDeleteModal, 'setupIdsDeleteModal');
+  safeSetup(setupCustomPlayer, 'setupCustomPlayer');
+  safeSetup(setupChangePassword, 'setupChangePassword');
+
+  safeSetup(renderLinksList, 'renderLinksList');
 
   if (window.__PUBLIC_USER__) {
     return;
@@ -8197,6 +11319,348 @@ function toggleAnalyticsPanel() {
   }
 }
 
+function toggleUserMenu() {
+  const menu = document.getElementById('user-menu');
+  if (!menu) return;
+  menu.classList.toggle('show');
+}
+
+/* ================================================
+   MY ID'S SECTION
+   ================================================ */
+function toggleIdsSection() {
+  const section = document.getElementById('ids-section');
+  if (!section) return;
+  if (section.classList.contains('hidden')) {
+    section.classList.remove('hidden');
+    loadAliases();
+  } else {
+    section.classList.add('hidden');
+  }
+}
+
+let aliasData = null;
+
+async function loadAliases() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/get-aliases?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    const data = await res.json();
+    if (data.success) {
+      aliasData = data;
+      renderIdsTable(data.primary, data.aliases);
+    }
+  } catch (e) {
+    console.error('Failed to load aliases:', e);
+  }
+}
+
+function renderIdsTable(primary, aliases) {
+  const tbody = document.getElementById('ids-tbody');
+  if (!tbody) return;
+
+  const rows = [];
+
+  rows.push(createIdsRow(1, primary, 'primary', null, true));
+
+  if (aliases.length > 0) {
+    rows.push(createIdsRow(2, aliases[0].alias, 'active', aliases[0].alias));
+  } else {
+    rows.push(createIdsRow(2, null, 'empty'));
+  }
+
+  for (let i = 3; i <= 5; i++) {
+    rows.push(createIdsRow(i, null, 'locked'));
+  }
+
+  tbody.innerHTML = rows.join('');
+}
+
+function createIdsRow(num, value, type, aliasStr, isPrimary) {
+  const idDisplay = value ? escapeHtml(value) : '—';
+  const linkVal = value ? `seya.lol/${encodeURIComponent(value)}` : '—';
+
+  if (type === 'primary') {
+    return `<tr>
+      <td class="ids-col-num">${num}</td>
+      <td><span class="ids-id-value ids-id-primary">${escapeHtml(value)}</span></td>
+      <td><span class="ids-status"><span class="ids-status-dot active"></span><span class="ids-status-label active">Active</span></span></td>
+      <td><a class="ids-link" href="/${encodeURIComponent(value)}" target="_blank">${linkVal}</a> <button class="ids-link-copy" data-alias="${escapeHtml(value)}">Copy</button></td>
+      <td></td>
+    </tr>`;
+  }
+
+  if (type === 'active') {
+    return `<tr>
+      <td class="ids-col-num">${num}</td>
+      <td><span class="ids-id-value">${escapeHtml(value)}</span></td>
+      <td><span class="ids-status"><span class="ids-status-dot active"></span><span class="ids-status-label active">Active</span></span></td>
+      <td><a class="ids-link" href="/${encodeURIComponent(value)}" target="_blank">${linkVal}</a> <button class="ids-link-copy" data-alias="${escapeHtml(value)}">Copy</button></td>
+      <td><button class="ids-delete-btn" data-alias="${escapeHtml(value)}" data-action="delete-id" title="Delete this ID">✕</button></td>
+    </tr>`;
+  }
+
+  if (type === 'empty') {
+    return `<tr>
+      <td class="ids-col-num">${num}</td>
+      <td colspan="4">
+        <span class="ids-id-value ids-id-disabled">+ Add ID</span>
+        <span style="font-size:12px;color:var(--muted-2);margin-left:8px;">(available)</span>
+      </td>
+    </tr>`;
+  }
+
+  if (type === 'locked') {
+    return `<tr>
+      <td class="ids-col-num">${num}</td>
+      <td><span class="ids-id-value ids-id-disabled">🔒 Locked</span></td>
+      <td><span class="ids-status"><span class="ids-status-dot locked"></span><span class="ids-status-label locked">Unavailable</span></span></td>
+      <td><span class="ids-link ids-link-disabled">—</span></td>
+      <td></td>
+    </tr>`;
+  }
+
+  return '';
+}
+
+function setupIdsInput() {
+  const input = document.getElementById('ids-add-input');
+  if (!input) return;
+
+  const addBtn = document.getElementById('ids-add-btn');
+  const hint = document.getElementById('ids-add-hint');
+
+  input.addEventListener('input', () => {
+    const raw = input.value.replace(/[^a-z0-9_.]/gi, '').toLowerCase();
+    if (raw !== input.value) {
+      input.value = raw;
+    }
+    if (raw.length > 0 && !/^[a-z0-9_.]+$/.test(raw)) {
+      hint.textContent = 'Only lowercase letters, numbers, underscores, dots allowed';
+      hint.style.color = 'var(--danger)';
+    } else if (raw.length > 0) {
+      hint.textContent = 'Checking availability...';
+      hint.style.color = 'var(--muted)';
+      clearTimeout(input._checkTimer);
+      input._checkTimer = setTimeout(() => checkAliasAvailability(raw, hint), 300);
+    } else {
+      hint.textContent = 'Only lowercase letters, numbers, underscores, dots';
+      hint.style.color = 'var(--muted)';
+    }
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addAlias();
+    }
+  });
+
+  addBtn.addEventListener('click', addAlias);
+}
+
+async function checkAliasAvailability(alias, hintEl) {
+  try {
+    const res = await fetch(`/api/check-alias?alias=${encodeURIComponent(alias)}`);
+    const data = await res.json();
+    if (data.available) {
+      hintEl.textContent = 'Available!';
+      hintEl.style.color = '#4ade80';
+    } else {
+      hintEl.textContent = data.error || 'Already taken';
+      hintEl.style.color = 'var(--danger)';
+    }
+  } catch (e) {
+    hintEl.textContent = 'Could not check availability';
+    hintEl.style.color = 'var(--danger)';
+  }
+}
+
+async function addAlias() {
+  const input = document.getElementById('ids-add-input');
+  const hint = document.getElementById('ids-add-hint');
+  const addBtn = document.getElementById('ids-add-btn');
+  if (!input || !addBtn) return;
+
+  const alias = input.value.trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
+  if (!alias) {
+    hint.textContent = 'Please enter an ID';
+    hint.style.color = 'var(--danger)';
+    return;
+  }
+
+  if (!/^[a-z0-9_.]+$/.test(alias)) {
+    hint.textContent = 'Only lowercase letters, numbers, underscores, dots allowed';
+    hint.style.color = 'var(--danger)';
+    return;
+  }
+
+  addBtn.disabled = true;
+  addBtn.textContent = 'Adding...';
+
+  try {
+    const res = await fetch('/api/add-alias?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ alias })
+    });
+    const data = await res.json();
+    if (data.success) {
+      hint.textContent = 'ID added successfully!';
+      hint.style.color = '#4ade80';
+      input.value = '';
+      loadAliases();
+    } else {
+      hint.textContent = data.error || 'Failed to add ID';
+      hint.style.color = 'var(--danger)';
+    }
+  } catch (e) {
+    hint.textContent = 'Server error';
+    hint.style.color = 'var(--danger)';
+  }
+
+  addBtn.disabled = false;
+  addBtn.textContent = 'Add';
+}
+
+function setupIdsCopyButtons() {
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.ids-link-copy');
+    if (!btn) return;
+    const alias = btn.dataset.alias;
+    if (!alias) return;
+    const text = `seya.lol/${alias}`;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Copied: ' + text);
+    }).catch(() => {
+      showToast('Failed to copy');
+    });
+  });
+}
+
+/* ================================================
+   DELETE ALIAS — two-step confirm modal
+   ================================================ */
+let _pendingDeleteAlias = '';
+
+function setupIdsDeleteModal() {
+  document.getElementById('confirm-cancel-btn').addEventListener('click', closeConfirmModal);
+  document.getElementById('confirm-yes-btn').addEventListener('click', showDeleteStep2);
+  document.getElementById('confirm-accept-cancel-btn').addEventListener('click', closeConfirmModal);
+  document.getElementById('confirm-accept-btn').addEventListener('click', confirmDeleteAlias);
+
+  const acceptInput = document.getElementById('confirm-accept-input');
+  acceptInput.addEventListener('input', () => {
+    const val = acceptInput.value.trim();
+    const okBtn = document.getElementById('confirm-accept-btn');
+    const hint = document.getElementById('confirm-accept-hint');
+    if (val === 'Accept') {
+      okBtn.disabled = false;
+      hint.textContent = '';
+    } else {
+      okBtn.disabled = true;
+      if (val.length > 0) {
+        hint.textContent = 'Type exactly "Accept" to confirm';
+        hint.style.color = 'var(--danger)';
+      } else {
+        hint.textContent = '';
+      }
+    }
+  });
+
+  acceptInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = acceptInput.value.trim();
+      if (val === 'Accept') {
+        confirmDeleteAlias();
+      }
+    }
+  });
+}
+
+function showDeleteStep1(alias) {
+  _pendingDeleteAlias = alias;
+  document.getElementById('confirm-step-1').style.display = '';
+  document.getElementById('confirm-step-2').style.display = 'none';
+  document.getElementById('confirm-desc').textContent = `Delete "${alias}"? This will remove the link seya.lol/${alias}. This action cannot be undone.`;
+  document.getElementById('confirm-overlay').style.display = 'flex';
+}
+
+function showDeleteStep2() {
+  document.getElementById('confirm-step-1').style.display = 'none';
+  document.getElementById('confirm-step-2').style.display = '';
+  const input = document.getElementById('confirm-accept-input');
+  input.value = '';
+  document.getElementById('confirm-accept-btn').disabled = true;
+  document.getElementById('confirm-accept-hint').textContent = '';
+  input.focus();
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-overlay').style.display = 'none';
+  _pendingDeleteAlias = '';
+  document.getElementById('confirm-step-1').style.display = '';
+  document.getElementById('confirm-step-2').style.display = 'none';
+  document.getElementById('confirm-accept-input').value = '';
+  document.getElementById('confirm-accept-btn').disabled = true;
+  document.getElementById('confirm-accept-hint').textContent = '';
+}
+
+async function confirmDeleteAlias() {
+  const alias = _pendingDeleteAlias;
+  if (!alias) return;
+
+  const btn = document.getElementById('confirm-accept-btn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+
+  try {
+    const res = await fetch('/api/delete-alias?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ alias })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('ID "' + alias + '" deleted');
+      closeConfirmModal();
+      loadAliases();
+    } else {
+      document.getElementById('confirm-accept-hint').textContent = data.error || 'Failed to delete';
+      document.getElementById('confirm-accept-hint').style.color = 'var(--danger)';
+      btn.disabled = false;
+      btn.textContent = 'Accept';
+    }
+  } catch (e) {
+    document.getElementById('confirm-accept-hint').textContent = 'Server error';
+    document.getElementById('confirm-accept-hint').style.color = 'var(--danger)';
+    btn.disabled = false;
+    btn.textContent = 'Accept';
+  }
+}
+
+document.addEventListener('click', e => {
+  const menu = document.getElementById('user-menu');
+  if (!menu || !menu.classList.contains('show')) return;
+  const wrap = document.querySelector('.user-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+});
+
 async function loadAnalytics() {
   console.log('loadAnalytics called, authToken:', authToken ? authToken.substring(0, 20) + '...' : 'null');
   
@@ -8362,8 +11826,802 @@ function setupAnalyticsPeriodTabs() {
   });
 }
 
+function setupAlphaTilt() {
+  const badge = document.querySelector('.alpha-badge[data-tilt]');
+  if (!badge) return;
+  const landing = document.getElementById('screen-landing');
+  if (!landing) return;
+
+  let ticking = false;
+
+  landing.addEventListener('mousemove', (e) => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const rect = badge.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const deltaX = (e.clientX - centerX) / rect.width;
+        const deltaY = (e.clientY - centerY) / rect.height;
+        const maxTilt = 4;
+        const rotY = deltaX * maxTilt;
+        const rotX = -deltaY * maxTilt;
+        badge.style.transform = `perspective(500px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+
+  landing.addEventListener('mouseleave', () => {
+    badge.style.transform = 'perspective(500px) rotateX(0deg) rotateY(0deg)';
+  });
+}
+
+/* ================================================
+   2FA SETUP / DISABLE
+   ================================================ */
+function setup2FASection() {
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('dash-2fa-action-btn'), 'click', handle2FAAction);
+  on($('dash-2fa-setup-verify-btn'), 'click', verify2FASetup);
+  on($('dash-2fa-setup-code'), 'keydown', e => { if (e.key === 'Enter') verify2FASetup(); });
+  on($('dash-2fa-setup-cancel'), 'click', cancel2FASetup);
+  on($('dash-2fa-disable-confirm-btn'), 'click', confirmDisable2FA);
+  on($('dash-2fa-disable-code'), 'keydown', e => { if (e.key === 'Enter') confirmDisable2FA(); });
+  on($('dash-2fa-disable-cancel'), 'click', cancel2FADisable);
+}
+
+async function load2FAStatus() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/get-email-status?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (!data.success) return;
+    update2FAUI(data);
+  } catch (e) {
+    console.error('load2FAStatus:', e);
+  }
+}
+
+function update2FAUI(data) {
+  const row = document.getElementById('dash-2fa-status-row');
+  const offRow = document.getElementById('dash-2fa-off-row');
+  const badge = document.getElementById('dash-2fa-enabled-badge');
+  const btn = document.getElementById('dash-2fa-action-btn');
+  const setup = document.getElementById('dash-2fa-setup');
+  const disable = document.getElementById('dash-2fa-disable');
+  const nonotice = document.getElementById('dash-2fa-nonotice');
+
+  if (data.has2fa) {
+    row.style.display = '';
+    offRow.style.display = 'none';
+    badge.style.display = '';
+    badge.textContent = 'On';
+    btn.textContent = 'Disable';
+    btn.className = 'btn btn-danger btn--sm';
+    update2faMenuItem(true);
+  } else {
+    row.style.display = '';
+    offRow.style.display = '';
+    badge.style.display = 'none';
+    btn.textContent = 'Enable';
+    btn.className = 'btn btn-ghost btn--sm';
+    update2faMenuItem(false);
+  }
+  nonotice.style.display = 'none';
+  setup.style.display = 'none';
+  disable.style.display = 'none';
+}
+
+function update2faMenuItem(enabled) {
+  const btn = document.querySelector('[data-action="toggle-2fa"] span');
+  if (btn) btn.textContent = enabled ? 'Disable 2FA' : 'Connect 2FA';
+}
+
+let pending2FASecret = '';
+
+async function handle2FAAction() {
+  const btn = document.getElementById('dash-2fa-action-btn');
+  const isEnable = btn.textContent === 'Enable';
+  const faSetup = document.getElementById('dash-2fa-setup');
+  const faDisable = document.getElementById('dash-2fa-disable');
+
+  if (isEnable) {
+    try {
+      const res = await fetch('/api/setup-totp?token=' + encodeURIComponent(authToken), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.error || 'Failed to setup 2FA');
+        return;
+      }
+      pending2FASecret = data.secret;
+      document.getElementById('dash-2fa-qr').src = data.qrUrl;
+      document.getElementById('dash-2fa-secret').textContent = 'Manual key: ' + data.secret;
+      document.getElementById('dash-2fa-setup-code').value = '';
+      document.getElementById('dash-2fa-setup-hint').textContent = '';
+      faSetup.style.display = '';
+      faDisable.style.display = 'none';
+      document.getElementById('dash-2fa-setup-code').focus();
+    } catch (e) {
+      showToast('Server error');
+    }
+  } else {
+    faDisable.style.display = '';
+    faSetup.style.display = 'none';
+    document.getElementById('dash-2fa-disable-code').value = '';
+    document.getElementById('dash-2fa-disable-hint').textContent = '';
+    document.getElementById('dash-2fa-disable-code').focus();
+  }
+}
+
+async function verify2FASetup() {
+  const code = document.getElementById('dash-2fa-setup-code').value.trim();
+  const hint = document.getElementById('dash-2fa-setup-hint');
+  const btn = document.getElementById('dash-2fa-setup-verify-btn');
+
+  if (!code || code.length !== 6) {
+    hint.textContent = 'Enter the 6-digit code from your authenticator app';
+    hint.style.color = 'var(--danger)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  try {
+    const res = await fetch('/api/verify-totp-setup?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ secret: pending2FASecret, code })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('2FA enabled!');
+      document.getElementById('dash-2fa-setup').style.display = 'none';
+      load2FAStatus();
+    } else {
+      hint.textContent = data.error || 'Invalid code';
+      hint.style.color = 'var(--danger)';
+    }
+  } catch (e) {
+    hint.textContent = 'Server error';
+    hint.style.color = 'var(--danger)';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Verify';
+}
+
+function cancel2FASetup() {
+  document.getElementById('dash-2fa-setup').style.display = 'none';
+  pending2FASecret = '';
+}
+
+async function confirmDisable2FA() {
+  const code = document.getElementById('dash-2fa-disable-code').value.trim();
+  const hint = document.getElementById('dash-2fa-disable-hint');
+  const btn = document.getElementById('dash-2fa-disable-confirm-btn');
+
+  if (!code || code.length !== 6) {
+    hint.textContent = 'Enter a code from your authenticator app';
+    hint.style.color = 'var(--danger)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Disabling...';
+
+  try {
+    const res = await fetch('/api/disable-totp?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ code })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('2FA disabled');
+      document.getElementById('dash-2fa-disable').style.display = 'none';
+      load2FAStatus();
+    } else {
+      hint.textContent = data.error || 'Failed to disable 2FA';
+      if (data.requireCode) {
+        hint.style.color = 'var(--danger)';
+      } else {
+        showToast(data.error || 'Failed to disable 2FA');
+        document.getElementById('dash-2fa-disable').style.display = 'none';
+      }
+    }
+  } catch (e) {
+    hint.textContent = 'Server error';
+    hint.style.color = 'var(--danger)';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Disable';
+}
+
+function cancel2FADisable() {
+  document.getElementById('dash-2fa-disable').style.display = 'none';
+}
+
+/* ================================================
+   FORGOT PASSWORD — via email verification
+   ================================================ */
+function showForgotPasswordFlow() {
+  const step1 = document.getElementById('cp-step-1');
+  const step2 = document.getElementById('cp-step-2');
+
+  step1.innerHTML = `
+    <div style="margin-bottom:24px;">
+      <h2 class="auth-title" style="font-family:var(--font-head);font-size:28px;font-weight:800;margin-bottom:8px;">Reset Password</h2>
+      <p class="auth-sub" style="color:var(--muted);font-size:14px;">We'll send a code to your linked email</p>
+    </div>
+    <div class="input-wrap">
+      <label>Email</label>
+      <input type="email" id="cp-reset-email" class="input-field" placeholder="your@email.com" />
+      <p class="input-hint" id="cp-reset-email-hint"></p>
+    </div>
+    <div id="cp-reset-code-wrap" style="display:none;">
+      <div class="input-wrap">
+        <label>Verification Code</label>
+        <input type="text" id="cp-reset-code" class="input-field" placeholder="000000" maxlength="6" style="text-align:center;font-size:20px;letter-spacing:8px;font-family:monospace;" />
+        <p class="input-hint" id="cp-reset-code-hint"></p>
+      </div>
+      <div class="input-wrap">
+        <label>New Password</label>
+        <input type="password" id="cp-reset-new-pw" class="input-field" placeholder="New password" minlength="4" />
+        <p class="input-hint" id="cp-reset-new-pw-hint"></p>
+      </div>
+      <div class="input-wrap">
+        <label>Confirm New Password</label>
+        <input type="password" id="cp-reset-confirm-pw" class="input-field" placeholder="Confirm new password" minlength="4" />
+        <p class="input-hint" id="cp-reset-confirm-pw-hint"></p>
+      </div>
+    </div>
+    <button class="btn btn-primary btn--full" id="cp-reset-btn">Send Code →</button>
+    <button class="btn btn-ghost btn--sm" data-action="cancel-forgot-pw" style="margin-top:8px;display:block;width:100%;">← Back</button>
+  `;
+
+  step2.style.display = 'none';
+
+  document.querySelector('[data-action="cancel-forgot-pw"]').addEventListener('click', () => {
+    showScreen('landing');
+  });
+
+  const btn = document.getElementById('cp-reset-btn');
+  btn.addEventListener('click', handleForgotPasswordClick);
+}
+
+let forgotPwEmail = '';
+let forgotPwStep = 'send'; // 'send' or 'reset'
+
+async function handleForgotPasswordClick() {
+  const btn = document.getElementById('cp-reset-btn');
+  const hint = document.getElementById('cp-reset-email-hint');
+
+  if (forgotPwStep === 'send') {
+    const email = document.getElementById('cp-reset-email').value.trim();
+    if (!email || !email.includes('@')) {
+      hint.textContent = 'Enter a valid email';
+      hint.style.color = 'var(--danger)';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+      const res = await fetch('/api/send-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, forReset: true })
+      });
+      const data = await res.json();
+      if (data.success) {
+        forgotPwEmail = email;
+        forgotPwStep = 'reset';
+        document.getElementById('cp-reset-code-wrap').style.display = '';
+        document.getElementById('cp-reset-email').disabled = true;
+        hint.textContent = 'Code sent to ' + data.message.replace('Code sent to ', '');
+        hint.style.color = '#4ade80';
+        btn.textContent = 'Reset Password →';
+        btn.disabled = false;
+        document.getElementById('cp-reset-code').focus();
+      } else {
+        hint.textContent = data.error || 'Failed to send code';
+        hint.style.color = 'var(--danger)';
+        btn.disabled = false;
+        btn.textContent = 'Send Code →';
+      }
+    } catch (e) {
+      hint.textContent = 'Server error';
+      hint.style.color = 'var(--danger)';
+      btn.disabled = false;
+      btn.textContent = 'Send Code →';
+    }
+  } else {
+    // Reset password step
+    const code = document.getElementById('cp-reset-code').value.trim();
+    const newPw = document.getElementById('cp-reset-new-pw').value;
+    const confirmPw = document.getElementById('cp-reset-confirm-pw').value;
+    const codeHint = document.getElementById('cp-reset-code-hint');
+
+    if (!code || code.length !== 6) {
+      codeHint.textContent = 'Enter the 6-digit code';
+      codeHint.style.color = 'var(--danger)';
+      return;
+    }
+    if (newPw.length < 4) {
+      document.getElementById('cp-reset-new-pw-hint').textContent = 'Min 4 characters';
+      document.getElementById('cp-reset-new-pw-hint').style.color = 'var(--danger)';
+      return;
+    }
+    if (newPw !== confirmPw) {
+      document.getElementById('cp-reset-confirm-pw-hint').textContent = 'Passwords do not match';
+      document.getElementById('cp-reset-confirm-pw-hint').style.color = 'var(--danger)';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+
+    try {
+      const res = await fetch('/api/reset-password-by-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotPwEmail, code, password: newPw })
+      });
+      const data = await res.json();
+      if (data.success) {
+        authToken = data.token;
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('username', data.username);
+        state.currentUser = data.username;
+        showToast('Password reset! Welcome back.');
+        showScreen('landing');
+      } else {
+        codeHint.textContent = data.error || 'Failed to reset';
+        codeHint.style.color = 'var(--danger)';
+        btn.disabled = false;
+        btn.textContent = 'Reset Password →';
+      }
+    } catch (e) {
+      codeHint.textContent = 'Server error';
+      codeHint.style.color = 'var(--danger)';
+      btn.disabled = false;
+      btn.textContent = 'Reset Password →';
+    }
+  }
+}
+
+/* ================================================
+   2FA LOGIN FLOW
+   ================================================ */
+function show2FALogin() {
+  document.querySelector('.auth-box').style.display = 'none';
+  const box = document.getElementById('auth-2fa-box');
+  box.style.display = '';
+  document.getElementById('auth-2fa-input').value = '';
+  document.getElementById('auth-2fa-hint').textContent = '';
+  document.getElementById('auth-2fa-input').focus();
+}
+
+function setup2FALogin() {
+  document.getElementById('auth-2fa-submit-btn').addEventListener('click', submit2FALogin);
+  document.getElementById('auth-2fa-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submit2FALogin();
+  });
+  document.getElementById('auth-2fa-back-btn').addEventListener('click', () => {
+    document.getElementById('auth-2fa-box').style.display = 'none';
+    document.querySelector('.auth-box').style.display = '';
+  });
+}
+
+async function submit2FALogin() {
+  const input = document.getElementById('auth-2fa-input');
+  const hint = document.getElementById('auth-2fa-hint');
+  const btn = document.getElementById('auth-2fa-submit-btn');
+  const code = input.value.trim();
+  const username = document.getElementById('nickname-input').value.trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
+
+  if (!code || code.length !== 6) {
+    hint.textContent = 'Enter the 6-digit code';
+    hint.style.color = 'var(--danger)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  try {
+    const res = await fetch('/api/verify-2fa-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, code })
+    });
+    const data = await res.json();
+    if (data.success) {
+      authToken = data.token;
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('username', data.username);
+      state.currentUser = data.username;
+      if (data.pageData) {
+        state.page = normalizePageData({ ...state.page, ...data.pageData });
+      }
+      resetAuthForm();
+      document.getElementById('auth-2fa-box').style.display = 'none';
+      document.querySelector('.auth-box').style.display = '';
+      showToast('Welcome back!');
+      checkSession().then(() => {
+        showScreen('landing');
+        updateLandingButtons();
+      });
+    } else {
+      hint.textContent = data.error || 'Invalid code';
+      hint.style.color = 'var(--danger)';
+      btn.disabled = false;
+      btn.textContent = 'Verify →';
+    }
+  } catch (e) {
+    hint.textContent = 'Server error';
+    hint.style.color = 'var(--danger)';
+    btn.disabled = false;
+    btn.textContent = 'Verify →';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setupAnalyticsPeriodTabs();
+  setupAlphaTilt();
 });
 
 document.addEventListener('DOMContentLoaded', init);
+
+// 2FA setup — called after DOM
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    setup2FASection();
+    setup2FALogin();
+  } catch (e) {
+    console.warn('2fa setup:', e.message);
+  }
+});
+
+/* ================================================
+   TEMPLATES SECTION
+   ================================================ */
+let templatesData = {
+  templates: [],
+  total: 0,
+  page: 1,
+  hasMore: false
+};
+let currentTemplateFilter = 'popular';
+let currentTemplateSearch = '';
+let currentTemplatePage = 1;
+let currentTemplate = null;
+
+function toggleTemplatesSection() {
+  const section = document.getElementById('templates-section');
+  if (!section) return;
+  if (section.classList.contains('hidden')) {
+    section.classList.remove('hidden');
+    loadTemplates();
+  } else {
+    section.classList.add('hidden');
+  }
+}
+
+async function loadTemplates() {
+  const grid = document.getElementById('templates-grid');
+  const loading = document.getElementById('templates-loading');
+  const empty = document.getElementById('templates-empty');
+  
+  if (loading) loading.style.display = 'block';
+  if (grid) grid.innerHTML = '';
+  if (empty) empty.style.display = 'none';
+  
+  const sort = currentTemplateFilter === 'popular' ? 'popular' : 
+               currentTemplateFilter === 'newest' ? 'newest' : 'oldest';
+  
+  try {
+    const params = new URLSearchParams({
+      sort: sort,
+      page: currentTemplatePage,
+      search: currentTemplateSearch
+    });
+    
+    const res = await fetch('/api/list-templates?' + params);
+    const data = await res.json();
+    
+    templatesData = data;
+    renderTemplatesGrid(data.templates);
+    
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = data.templates.length === 0 ? 'block' : 'none';
+    
+    updateTemplatesPagination();
+  } catch (e) {
+    console.error('Failed to load templates:', e);
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+  }
+}
+
+function renderTemplatesGrid(templates) {
+  const grid = document.getElementById('templates-grid');
+  if (!grid) return;
+  
+  grid.innerHTML = templates.map(t => `
+    <div class="template-card" data-template-id="${t.id}" onclick="openTemplateModal(${t.id})">
+      <div class="template-card-header">
+        <div>
+          <div class="template-card-name">${escapeHtml(t.name)}</div>
+          <div class="template-card-creator">@${escapeHtml(t.creator)}</div>
+        </div>
+      </div>
+      <div class="template-card-preview">
+        <div class="mini-phone">
+          <div class="phone-frame mini">
+            <div class="phone-screen" style="background:${getRandomBg()}">
+              <div class="preview-content" style="padding:8px;text-align:center">
+                <div class="preview-avatar" style="width:24px;height:24px;margin:0 auto 4px;background:var(--surface-3);border-radius:50%"></div>
+                <div class="preview-name" style="height:10px;background:var(--surface-3);border-radius:4px;margin-bottom:4px"></div>
+                <div class="preview-bio" style="height:6px;background:var(--surface-4);border-radius:3px;width:70%;margin:0 auto"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="template-card-stats">
+        <span class="template-card-uses">👤 ${t.usage_count}</span>
+      </div>
+      ${t.tags && t.tags.length > 0 ? `
+        <div class="template-card-tags">
+          ${t.tags.slice(0, 3).map(tag => `<span class="template-card-tag">${escapeHtml(tag)}</span>`).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+function getRandomBg() {
+  const backgrounds = ['bg-black', 'bg-gray', 'bg-slate', 'bg-zinc', 'bg-stone'];
+  return 'var(--surface-2)';
+}
+
+function updateTemplatesPagination() {
+  const pageInfo = document.getElementById('templates-page-info');
+  const prevBtn = document.getElementById('templates-prev');
+  const nextBtn = document.getElementById('templates-next');
+  
+  if (pageInfo) pageInfo.textContent = `Page ${templatesData.page}`;
+  if (prevBtn) prevBtn.disabled = templatesData.page === 1;
+  if (nextBtn) nextBtn.disabled = !templatesData.hasMore;
+}
+
+async function openTemplateModal(templateId) {
+  const modal = document.getElementById('templates-modal');
+  const loading = document.getElementById('templates-modal-loading');
+  const content = document.getElementById('templates-modal-content');
+  
+  if (loading) loading.style.display = 'block';
+  if (content) content.style.display = 'none';
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+  
+  try {
+    const res = await fetch('/api/get-template?id=' + templateId);
+    const data = await res.json();
+    
+    if (!data.success) {
+      showToast('Failed to load template');
+      closeTemplateModal();
+      return;
+    }
+    
+    currentTemplate = data.template;
+    renderTemplateModal(data.template);
+    
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'block';
+  } catch (e) {
+    console.error('Failed to load template:', e);
+    showToast('Failed to load template');
+    closeTemplateModal();
+  }
+}
+
+function renderTemplateModal(template) {
+  document.getElementById('templates-modal-name').textContent = template.name;
+  document.getElementById('templates-modal-creator').textContent = template.creator;
+  document.getElementById('templates-modal-uses').textContent = `${template.usage_count} uses`;
+  document.getElementById('templates-modal-description').textContent = template.description || '';
+  
+  const tagsContainer = document.getElementById('templates-modal-tags');
+  if (template.tags && template.tags.length > 0) {
+    tagsContainer.innerHTML = template.tags.map(tag => `<span class="templates-tag">${escapeHtml(tag)}</span>`).join('');
+    tagsContainer.style.display = 'flex';
+  } else {
+    tagsContainer.style.display = 'none';
+  }
+  
+  renderTemplateMiniPreview(template.pageData);
+}
+
+function renderTemplateMiniPreview(pageData) {
+  const screen = document.getElementById('templates-preview-screen');
+  if (!screen || !pageData) return;
+  
+  const bgClass = pageData.bg || 'bg-black';
+  screen.className = 'phone-screen ' + bgClass;
+  screen.style.setProperty('--page-accent', pageData.accentColor || '#d6d6d6');
+  
+  const avatarHtml = pageData.avatar 
+    ? `<img src="${pageData.avatar}" alt="Avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover" />`
+    : `<div style="width:32px;height:32px;border-radius:50%;background:var(--surface-3);margin:0 auto"></div>`;
+  
+  const nameText = pageData.displayNameHtml || pageData.displayName || '@username';
+  const bioText = escapeHtml(pageData.bio || '');
+  
+  screen.innerHTML = `
+    <div class="preview-content" style="padding:10px;text-align:center">
+      <div style="margin-bottom:6px">${avatarHtml}</div>
+      <div style="font-family:'${pageData.font || 'Syne'}',sans-serif;font-size:${pageData.nameSize || 22}px;font-weight:700;margin-bottom:4px">${nameText}</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.4">${bioText}</div>
+    </div>
+  `;
+}
+
+function closeTemplateModal() {
+  const modal = document.getElementById('templates-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
+}
+
+async function applyTemplate() {
+  if (!currentTemplate || !authToken) return;
+  
+  try {
+    const res = await fetch('/api/apply-template', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ template_id: currentTemplate.id })
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast('Template applied! 🎨');
+      closeTemplateModal();
+    } else {
+      showToast(data.error || 'Failed to apply template');
+    }
+  } catch (e) {
+    console.error('Failed to apply template:', e);
+    showToast('Failed to apply template');
+  }
+}
+
+async function createTemplateFromProfile() {
+  if (!authToken) {
+    showToast('Please log in to create a template');
+    return;
+  }
+  
+  const nameInput = document.getElementById('create-template-name');
+  const tagsInput = document.getElementById('create-template-tags');
+  const descInput = document.getElementById('create-template-description');
+  
+  const name = nameInput.value.trim();
+  const tags = tagsInput.value.split(',').map(t => t.trim()).filter(t => t);
+  const description = descInput.value.trim();
+  
+  if (!name) {
+    showToast('Template name is required');
+    return;
+  }
+  
+  // Get current page data from state
+  const pageData = JSON.parse(JSON.stringify(state.page));
+  
+  try {
+    const res = await fetch('/api/save-template', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        name: name,
+        tags: tags,
+        description: description,
+        pageData: pageData
+      })
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast('Template created! 🎉');
+      closeCreateTemplateModal();
+      loadTemplates();
+    } else {
+      showToast(data.error || 'Failed to create template');
+    }
+  } catch (e) {
+    console.error('Failed to create template:', e);
+    showToast('Failed to create template');
+  }
+}
+
+function openCreateTemplateModal() {
+  const modal = document.getElementById('create-template-modal');
+  const overlay = document.getElementById('create-template-overlay');
+  if (modal) modal.style.display = 'block';
+  if (overlay) overlay.style.display = 'block';
+}
+
+function closeCreateTemplateModal() {
+  const modal = document.getElementById('create-template-modal');
+  const overlay = document.getElementById('create-template-overlay');
+  if (modal) modal.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+  document.getElementById('create-template-name').value = '';
+  document.getElementById('create-template-tags').value = '';
+  document.getElementById('create-template-description').value = '';
+}
+
+function setupTemplatesEventListeners() {
+  document.getElementById('templates-search-input')?.addEventListener('input', e => {
+    currentTemplateSearch = e.target.value;
+    currentTemplatePage = 1;
+    loadTemplates();
+  });
+  
+  document.querySelectorAll('.templates-filters .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.templates-filters .btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTemplateFilter = btn.dataset.filter;
+      currentTemplatePage = 1;
+      loadTemplates();
+    });
+  });
+  
+  document.getElementById('templates-prev')?.addEventListener('click', () => {
+    if (currentTemplatePage > 1) {
+      currentTemplatePage--;
+      loadTemplates();
+    }
+  });
+  
+  document.getElementById('templates-next')?.addEventListener('click', () => {
+    if (templatesData.hasMore) {
+      currentTemplatePage++;
+      loadTemplates();
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', setupTemplatesEventListeners);
