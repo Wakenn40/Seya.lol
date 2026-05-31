@@ -173,6 +173,7 @@ body.public-page-active #screen-public {
 
 .screen--col { flex-direction: column; }
 .screen--row { flex-direction: row; }
+#screen-dashboard { overflow-y: auto; }
 
 @keyframes screen-in {
   from { opacity: 0; transform: translateY(10px); }

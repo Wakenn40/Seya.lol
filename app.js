@@ -10118,9 +10118,13 @@ function setupGlobalActions() {
         }
         break;
 
-      case 'pricing-premium':
       case 'premium-card':
-        startPremiumPayment();
+        if (authToken) {
+          startPremiumPayment();
+        } else {
+          setAuthMode('signup');
+          showScreen('auth', { payload: { authMode: 'signup' } });
+        }
         break;
 
       case 'open-templates':
@@ -11654,6 +11658,18 @@ checkSession().then(isLoggedIn => {
       setAuthMode('login');
       showScreen('auth', { payload: { authMode: 'login' } });
     });
+    var btnPremium = document.getElementById('btn-pricing-premium');
+    if (btnPremium) {
+      btnPremium.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (authToken) {
+          startPremiumPayment();
+        } else {
+          setAuthMode('signup');
+          showScreen('auth', { payload: { authMode: 'signup' } });
+        }
+      });
+    }
   }
 }
 
