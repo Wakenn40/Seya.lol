@@ -35,7 +35,7 @@ echo json_encode(['error' => 'No authorization code provided']);
 $clientId = '1505514252473991238';
 $clientSecret = 'aRS8QZS_3g5kPGo2yeAygaQv-AuDY-ir';
 // Hardcoded to match the Redirect URI configured in Discord Developer Portal
-$redirectUri = 'https://seya.lol/api/discord-callback.php';
+$redirectUri = 'https://seya.lol/discord-callback.php';
 
 error_log('discord-callback: redirect_uri=' . $redirectUri);
 error_log('discord-callback: code=' . substr($code ?? '', 0, 20) . '... state=' . substr($state ?? '', 0, 20) . '...');
