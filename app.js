@@ -10119,6 +10119,7 @@ function setupGlobalActions() {
         break;
 
       case 'premium-card':
+        console.log('[Premium] premium-card clicked');
         if (authToken) {
           startPremiumPayment();
         } else {
@@ -11660,8 +11661,11 @@ checkSession().then(isLoggedIn => {
     });
     var btnPremium = document.getElementById('btn-pricing-premium');
     if (btnPremium) {
+      console.log('[Premium] Button found, registering handler');
       btnPremium.addEventListener('click', function(e) {
         e.preventDefault();
+        e.stopPropagation();
+        console.log('[Premium] Button clicked, authToken:', !!authToken);
         if (authToken) {
           startPremiumPayment();
         } else {
@@ -11669,6 +11673,8 @@ checkSession().then(isLoggedIn => {
           showScreen('auth', { payload: { authMode: 'signup' } });
         }
       });
+    } else {
+      console.warn('[Premium] Button NOT found in DOM');
     }
   }
 }
