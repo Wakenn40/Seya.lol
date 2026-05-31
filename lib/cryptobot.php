@@ -12,9 +12,9 @@ class CryptoPay {
         return $this->call('getMe');
     }
 
-    public function createInvoice(float $amount, string $currencyType = 'fiat', string $asset = 'USD', array $extra = []): array {
+    public function createInvoice(float $amount, string $asset = 'USDT', array $extra = []): array {
         $params = [
-            'currency_type' => $currencyType,
+            'asset' => $asset,
             'amount' => $amount,
             'description' => $extra['description'] ?? 'Lifetime Premium Subscription',
             'paid_btn_name' => 'openLink',
@@ -22,9 +22,6 @@ class CryptoPay {
             'allow_anonymous' => false,
             'allow_comments' => false,
         ];
-        if ($currencyType === 'fiat') {
-            $params['asset'] = $asset;
-        }
         return $this->call('createInvoice', $params);
     }
 
@@ -66,19 +63,23 @@ class CryptoPay {
         ]);
         $resp = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         if ($resp === false) {
-            throw new Exception('CryptoPay API curl error: ' . curl_error($ch));
+            throw new Exception('CryptoPay API curl error: ' . $curlError);
         }
 
         $data = json_decode($resp, true);
         if (!$data || !isset($data['ok'])) {
-            throw new Exception('CryptoPay API invalid response: ' . $resp);
+            throw new Exception('CryptoPay API invalid response (http ' . $httpCode . '): ' . mb_substr($resp, 0, 500));
         }
 
         if (!$data['ok']) {
-            throw new Exception('CryptoPay API error: ' . ($data['error']['message'] ?? 'unknown error'));
+            $errMsg = $data['error']['message'] ?? ($data['error'] ?? 'unknown error');
+            if (is_array($errMsg)) $errMsg = json_encode($errMsg);
+            error_log('CryptoPay API error: http=' . $httpCode . ' response=' . mb_substr($resp, 0, 1000));
+            throw new Exception('CryptoPay: ' . $errMsg);
         }
 
         return $data['result'] ?? $data;

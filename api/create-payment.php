@@ -34,7 +34,7 @@ if (empty(CRYPTOBOT_API_KEY)) {
 try {
     $crypto = new CryptoPay(CRYPTOBOT_API_KEY);
 
-    $invoice = $crypto->createInvoice(3.99, 'fiat', 'USD', [
+    $invoice = $crypto->createInvoice(3.99, 'USDT', [
         'description' => 'Lifetime Premium - seya.lol (@' . $user['username'] . ')',
         'return_url' => SITE_URL . '/dashboard',
     ]);
