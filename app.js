@@ -12667,13 +12667,13 @@ function updatePremiumUI(data) {
 }
 
 async function startPremiumPayment() {
+  console.log('[Premium] startPremiumPayment called, authToken:', !!authToken);
   if (!authToken) {
     setAuthMode('signup');
     showScreen('auth', { payload: { authMode: 'signup' } });
     return;
   }
 
-  // Check if already premium
   const status = await loadPremiumStatus();
   if (status && status.premium) {
     showToast('You already have lifetime premium!', 3000);
@@ -12687,8 +12687,18 @@ async function startPremiumPayment() {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
-    const data = await res.json();
+    console.log('[Premium] create-payment status:', res.status);
 
+    if (!res.ok) {
+      hideToast();
+      const text = await res.text();
+      console.error('[Premium] Server error:', res.status, text);
+      showToast('Server error (' + res.status + '). Check console.', 5000);
+      return;
+    }
+
+    const data = await res.json();
+    console.log('[Premium] create-payment response:', data);
     hideToast();
 
     if (data.error) {
@@ -12696,23 +12706,22 @@ async function startPremiumPayment() {
         showToast('You already have premium!', 3000);
         loadPremiumStatus();
       } else {
-        showToast('Error: ' + data.error, 4000);
+        showToast('Error: ' + data.error, 5000);
       }
       return;
     }
 
     if (data.pay_url) {
-      // Open CryptoBot payment page
-      showToast('Opening payment page...', 4000);
+      showToast('Opening CryptoBot payment page...', 4000);
       window.open(data.pay_url, '_blank');
-
-      // Start polling for payment confirmation
       startPaymentPolling();
+    } else {
+      showToast('No payment URL received', 4000);
     }
   } catch (e) {
     hideToast();
-    console.error('startPremiumPayment:', e);
-    showToast('Payment creation failed', 3000);
+    console.error('[Premium] startPremiumPayment error:', e);
+    showToast('Payment creation failed: ' + e.message, 5000);
   }
 }
 
