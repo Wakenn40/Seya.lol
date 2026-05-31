@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>seya.lol - Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/svg+xml" href="seya_icon.svg" />
+</head>
+<body>
+
+<div id="app">
+  <div id="loading-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;display:none;"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <section class="screen screen--col active" id="screen-dashboard" aria-label="Dashboard">
+    <nav class="topnav" role="navigation" aria-label="Navigation">
+      <div class="topnav-logo" data-action="goto-landing" role="button" tabindex="0" aria-label="seya.lol">seya.lol</div>
+      <div class="topnav-right">
+        <div class="user-menu-wrap">
+          <button class="btn btn-settings btn--sm" data-action="toggle-user-menu">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Settings
+          </button>
+          <div class="user-menu" id="user-menu">
+            <div class="user-menu-header">Account</div>
+            <button class="user-menu-item" data-action="change-password">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Change Password</span>
+            </button>
+            <button class="user-menu-item" data-action="toggle-2fa">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              <span>Connect 2FA</span>
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn--sm" data-action="logout">Log out</button>
+      </div>
+    </nav>
+
+    <div class="dash-content">
+      <div class="dash-greet">Hi, <span class="accent-text" id="greet-name">@user</span> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:inline-block;vertical-align:middle;"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></div>
+      <p class="dash-sub">Your page is ready - share your link or customize it in the builder.</p>
+
+      <div class="my-link-row">
+        <div class="my-link-info">
+          <div class="my-link-url" id="dash-link">seya.lol/user</div>
+          <div class="my-link-label">Public page</div>
+        </div>
+        <div class="my-link-actions">
+          <button class="btn btn-ghost btn--sm" data-action="copy-link">Copy</button>
+          <button class="btn btn-primary btn--sm" data-action="goto-builder">Builder →</button>
+          <button class="btn btn-ghost btn--sm" data-action="goto-public">View page ↗</button>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="dash-card dash-card--featured" role="button" tabindex="0" data-action="goto-builder">
+          <span class="dash-tag">Main</span>
+          <span class="dash-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></span>
+          <h3>Builder</h3>
+          <p>Customize your look, add links, and choose a style</p>
+        </div>
+        <div class="dash-card" role="button" tabindex="0" data-action="toggle-analytics">
+          <span class="dash-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+          <h3>Analytics</h3>
+          <p>Page views and link clicks</p>
+        </div>
+        <div class="dash-card" role="button" tabindex="0" data-action="toggle-ids">
+          <span class="dash-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+          <h3>My ID's</h3>
+          <p>Manage your custom page IDs</p>
+        </div>
+        <div class="dash-card dash-card--premium" role="button" tabindex="0" data-action="premium-card">
+          <span class="dash-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 36 36" fill="none">
+              <defs><linearGradient id="gem-body-dash" x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#d4a8ff"/><stop offset="45%" stop-color="#9b5dff"/><stop offset="100%" stop-color="#4a1d96"/></linearGradient></defs>
+              <polygon points="18,2 30,10 30,14 18,34 6,14 6,10" fill="url(#gem-body-dash)"/>
+              <polygon points="6,10 30,10 30,14 6,14" fill="#fff" fill-opacity="0.12"/>
+              <polygon points="6,14 18,34 12,24" fill="#000" fill-opacity="0.18"/>
+              <polygon points="30,14 24,24 18,34" fill="#fff" fill-opacity="0.07"/>
+              <polygon points="18,2 30,10 18,10" fill="#fff" fill-opacity="0.15"/>
+              <polygon points="18,4 26,9 18,9" fill="#fff" fill-opacity="0.22"/>
+            </svg>
+          </span>
+          <h3>Premium <span id="dash-premium-badge" style="display:none;font-size:9px;background:linear-gradient(135deg,#7c3aed,#9b5dff);color:#fff;padding:2px 8px;border-radius:100px;margin-left:6px;vertical-align:middle;">ACTIVE</span></h3>
+          <p id="dash-premium-desc">One-time payment. Yours forever.</p>
+          <div id="dash-premium-cta" style="margin-top:8px;">
+            <span style="font-size:11px;color:#7c5ab8;font-weight:600;">$3.99 USDT — Unlock →</span>
+          </div>
+        </div>
+        <div class="dash-card dash-card--disabled" tabindex="0">
+          <div class="dash-card-blur"></div>
+          <div class="dash-card-lock">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              <circle cx="12" cy="16" r="1"/>
+              <line x1="12" y1="16" x2="12" y2="13"/>
+            </svg>
+          </div>
+          <span class="dash-icon" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></span>
+          <h3>Templates</h3>
+          <p>Coming soon</p>
+          <div class="dash-card-coming-soon">Coming Soon</div>
+        </div>
+      </div>
+
+      <div class="dash-section ids-section hidden" id="ids-section">
+        <div class="dash-section-header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>My ID's</span>
+        </div>
+        <div class="ids-body">
+          <p class="ids-hint">Each ID creates a separate link to your page. Share any of them!</p>
+          <div class="ids-table-wrap">
+            <table class="ids-table">
+              <thead>
+                <tr>
+                  <th class="ids-col-num">#</th>
+                  <th class="ids-col-id">ID</th>
+                  <th class="ids-col-status">Status</th>
+                  <th class="ids-col-link">Link</th>
+                  <th class="ids-col-action"></th>
+                </tr>
+              </thead>
+              <tbody id="ids-tbody">
+              </tbody>
+            </table>
+          </div>
+          <div class="ids-add-wrap" id="ids-add-wrap">
+            <div class="ids-add-inner">
+              <label for="ids-add-input" class="ids-add-label">Add new ID</label>
+              <div class="ids-add-row">
+                <span class="ids-add-prefix">seya.lol/</span>
+                <input type="text" id="ids-add-input" class="input-field ids-add-input" placeholder="my-id" maxlength="50" />
+                <button class="btn btn-primary btn--sm" id="ids-add-btn">Add</button>
+              </div>
+              <p class="input-hint" id="ids-add-hint">Only lowercase letters, numbers, underscores, dots</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-section hidden" id="templates-section" style="display:none"></div>
+
+      <div class="dash-section" id="dash-discord">
+        <div class="dash-section-header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px;"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+          <span>Discord</span>
+        </div>
+        <div class="dash-discord-body" id="dash-discord-body">
+          <div class="dash-discord-connect" id="dash-discord-connect">
+            <p class="dash-discord-text">Connect your Discord account to unlock widgets and community features.</p>
+            <button class="btn btn-ghost btn--sm" id="dash-discord-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px;"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+              Connect Discord
+            </button>
+          </div>
+          <div class="dash-discord-connected" id="dash-discord-connected" style="display:none;">
+            <div class="dash-discord-user">
+              <img class="dash-discord-avatar" id="dash-discord-avatar" src="" alt="" />
+              <div>
+                <div class="dash-discord-username" id="dash-discord-username"></div>
+                <div class="dash-discord-label">Connected</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn--sm" id="dash-discord-unlink-btn" style="margin-top:8px;">Disconnect</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="analytics-panel hidden" id="analytics-panel">
+        <div class="analytics-header">
+          <h2 class="analytics-title">Profile Views</h2>
+          <div class="analytics-period-tabs">
+            <button class="period-tab active" data-period="7d">7 Days</button>
+            <button class="period-tab" data-period="30d">Month</button>
+            <button class="period-tab" data-period="365d">Year</button>
+          </div>
+        </div>
+
+        <div class="analytics-stats">
+          <div class="stat-card">
+            <div class="stat-label">Total Views</div>
+            <div class="stat-value" id="stat-total">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg. Daily</div>
+            <div class="stat-value" id="stat-avg">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Best Day</div>
+            <div class="stat-value" id="stat-best">0</div>
+            <div class="stat-change stat-change--neutral" id="stat-best-date">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Visitors</div>
+            <div class="stat-value" id="stat-visitors">0</div>
+          </div>
+        </div>
+
+        <div class="analytics-chart">
+          <div class="chart-container">
+            <canvas id="analytics-chart-canvas" height="160"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="link-stats-panel hidden" id="link-stats-panel">
+        <div class="analytics-header">
+          <h2 class="analytics-title">Link Clicks</h2>
+          <div class="analytics-period-tabs">
+            <button class="period-tab active" data-link-period="7d">7 Days</button>
+            <button class="period-tab" data-link-period="30d">Month</button>
+            <button class="period-tab" data-link-period="365d">Year</button>
+          </div>
+        </div>
+        <div class="link-stats-body" id="link-stats-body">
+          <div class="link-stats-empty">No link clicks recorded yet</div>
+        </div>
+        <div class="link-stats-total">
+          Total clicks: <span id="link-stats-total">0</span>
+        </div>
+      </div>
+
+      <div class="dash-section" id="dash-2fa-section">
+        <div class="dash-section-header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          <span>Two-Factor Authentication</span>
+        </div>
+        <div class="dash-email-body">
+          <div id="dash-2fa-status-row" class="dash-email-linked" style="display:none;">
+            <div class="dash-email-info">
+              <span class="dash-email-addr" style="font-size:14px;">Authenticator App</span>
+              <span class="dash-email-badge" id="dash-2fa-enabled-badge">On</span>
+            </div>
+            <div class="dash-email-info" id="dash-2fa-off-row" style="margin-top:8px;display:none;">
+              <span class="dash-email-addr" style="font-size:14px;">Authenticator App</span>
+              <span class="dash-email-badge" style="background:var(--muted-2);color:var(--muted);font-weight:400;">Off</span>
+            </div>
+            <div class="dash-email-actions" style="margin-top:12px;">
+              <button class="btn btn-ghost btn--sm" id="dash-2fa-action-btn">Enable</button>
+            </div>
+          </div>
+          <div class="dash-email-not-linked" id="dash-2fa-nonotice" style="display:none;">
+            <p class="dash-email-text" style="font-size:13px;">2FA not available. Link an email in settings first.</p>
+          </div>
+
+          <div id="dash-2fa-setup" style="display:none;margin-top:16px;padding-top:16px;">
+            <p class="dash-email-text" style="margin-bottom:12px;">Scan this QR code with Google Authenticator or Authy:</p>
+            <img id="dash-2fa-qr" src="" alt="2FA QR Code" style="width:200px;height:200px;display:block;margin:0 auto 16px;border-radius:8px;background:#fff;padding:8px;" />
+            <p style="font-size:11px;color:var(--muted);text-align:center;word-break:break-all;margin-bottom:16px;font-family:monospace;" id="dash-2fa-secret"></p>
+            <p class="dash-email-text" style="font-size:13px;">Enter the 6-digit code from the app:</p>
+            <div class="dash-email-input-row">
+              <input type="text" id="dash-2fa-setup-code" class="input-field" placeholder="000000" maxlength="6" style="flex:1;min-width:0;text-align:center;font-size:20px;letter-spacing:8px;font-family:monospace;" />
+              <button class="btn btn-primary btn--sm" id="dash-2fa-setup-verify-btn">Verify</button>
+            </div>
+            <p class="input-hint" id="dash-2fa-setup-hint"></p>
+            <button class="btn btn-ghost btn--sm" id="dash-2fa-setup-cancel" style="margin-top:4px;">Cancel</button>
+          </div>
+
+          <div id="dash-2fa-disable" style="display:none;margin-top:16px;padding-top:16px;">
+            <p class="dash-email-text" style="font-size:13px;">Enter a code from your authenticator app to disable 2FA:</p>
+            <div class="dash-email-input-row">
+              <input type="text" id="dash-2fa-disable-code" class="input-field" placeholder="000000" maxlength="6" style="flex:1;min-width:0;text-align:center;font-size:20px;letter-spacing:8px;font-family:monospace;" />
+              <button class="btn btn-danger btn--sm" id="dash-2fa-disable-confirm-btn">Disable</button>
+            </div>
+            <p class="input-hint" id="dash-2fa-disable-hint"></p>
+            <button class="btn btn-ghost btn--sm" id="dash-2fa-disable-cancel" style="margin-top:4px;">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen screen--col" id="screen-change-password" aria-label="Change Password">
+    <nav class="topnav" role="navigation" aria-label="Navigation">
+      <div class="topnav-logo" data-action="goto-landing" role="button" tabindex="0" aria-label="seya.lol">seya.lol</div>
+      <div class="topnav-right">
+        <button class="btn btn-ghost btn--sm" data-action="goto-dashboard">← Dashboard</button>
+      </div>
+    </nav>
+
+    <div class="dash-content" style="max-width:480px;">
+      <div id="cp-step-0" style="display:none;">
+        <div style="margin-bottom:32px;">
+          <h2 class="auth-title" style="font-family:var(--font-head);font-size:28px;font-weight:800;margin-bottom:8px;">Two-Factor Authentication</h2>
+          <p class="auth-sub" id="cp-2fa-sub" style="color:var(--muted);font-size:14px;">Enter the code from your authenticator app</p>
+        </div>
+        <div id="cp-2fa-required" style="display:none;text-align:center;">
+          <p style="color:var(--danger);font-size:14px;font-weight:600;margin-bottom:8px;">2FA is required to change your password.</p>
+          <p style="color:var(--muted);font-size:13px;">Set up 2FA in your dashboard first.</p>
+        </div>
+        <div id="cp-2fa-input-area">
+          <div class="input-wrap">
+            <input type="text" id="cp-2fa-code" class="input-field" placeholder="000000" maxlength="6" autocomplete="off" style="text-align:center;font-size:24px;letter-spacing:10px;font-family:monospace;" />
+            <p class="input-hint" id="cp-2fa-hint"></p>
+          </div>
+          <button class="btn btn-primary btn--full" id="cp-2fa-verify-btn">Verify →</button>
+        </div>
+      </div>
+
+      <div id="cp-step-1" style="display:none;">
+        <div style="margin-bottom:32px;">
+          <h2 class="auth-title" style="font-family:var(--font-head);font-size:28px;font-weight:800;margin-bottom:8px;">Change Password</h2>
+          <p class="auth-sub" style="color:var(--muted);font-size:14px;">Verify your identity first</p>
+        </div>
+
+        <div class="input-wrap">
+          <label for="cp-nickname">Nickname</label>
+          <div class="input-prefix-wrap">
+            <span class="input-prefix-text" aria-hidden="true">seya.lol/</span>
+            <input type="text" id="cp-nickname" class="input-field" disabled />
+          </div>
+        </div>
+
+        <div class="input-wrap">
+          <label for="cp-current-password">Current Password</label>
+          <input type="password" id="cp-current-password" class="input-field" placeholder="Your current password" autocomplete="current-password" />
+          <p class="input-hint" id="cp-current-hint"></p>
+          <div class="cp-forgot-wrap" id="cp-forgot-wrap" style="display:none;">
+            <a href="#" class="cp-forgot-link" data-action="forgot-password" style="color:var(--danger);font-size:12px;font-weight:600;text-decoration:none;margin-top:6px;display:inline-block;">Forget password?</a>
+          </div>
+        </div>
+
+        <div class="input-wrap">
+          <label for="cp-new-password">New Password</label>
+          <input type="password" id="cp-new-password" class="input-field" placeholder="Create a new password" minlength="4" autocomplete="new-password" />
+          <p class="input-hint" id="cp-new-hint"></p>
+        </div>
+
+        <div class="input-wrap">
+          <label for="cp-confirm-password">Confirm New Password</label>
+          <input type="password" id="cp-confirm-password" class="input-field" placeholder="Confirm your new password" minlength="4" autocomplete="new-password" />
+          <p class="input-hint" id="cp-confirm-hint"></p>
+        </div>
+
+        <button class="btn btn-primary btn--full" id="cp-step1-btn">Verify →</button>
+      </div>
+
+      <div id="cp-step-2" style="display:none;">
+        <div style="margin-bottom:32px;">
+          <h2 class="auth-title" style="font-family:var(--font-head);font-size:28px;font-weight:800;margin-bottom:8px;">Set New Password</h2>
+          <p class="auth-sub" style="color:var(--muted);font-size:14px;">Enter your new password once more</p>
+        </div>
+
+        <div class="input-wrap">
+          <label for="cp-final-password">New Password</label>
+          <input type="password" id="cp-final-password" class="input-field" placeholder="New password" minlength="4" autocomplete="new-password" />
+          <p class="input-hint" id="cp-final-hint"></p>
+        </div>
+
+        <div class="input-wrap">
+          <label for="cp-final-confirm">Confirm New Password</label>
+          <input type="password" id="cp-final-confirm" class="input-field" placeholder="Confirm new password" minlength="4" autocomplete="new-password" />
+          <p class="input-hint" id="cp-final-confirm-hint"></p>
+        </div>
+
+        <button class="btn btn-primary btn--full" id="cp-step2-btn">Change Password →</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+<div class="confirm-overlay" id="confirm-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;align-items:center;justify-content:center;z-index:99999;background:rgba(0,0,0,0.85);">
+  <div class="confirm-modal" style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:32px;width:380px;max-width:90vw;box-shadow:0 25px 80px rgba(0,0,0,0.9);">
+    <div id="confirm-step-1">
+      <div class="confirm-icon" style="font-size:36px;text-align:center;margin-bottom:16px;">⚠️</div>
+      <div class="confirm-title" style="text-align:center;font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text);margin-bottom:10px;">Are you sure?</div>
+      <div class="confirm-desc" id="confirm-desc" style="text-align:center;font-size:14px;color:#888;line-height:1.5;margin-bottom:24px;">This action cannot be undone.</div>
+      <div class="confirm-actions" style="display:flex;gap:10px;justify-content:center;">
+        <button class="btn btn-ghost btn--sm" id="confirm-cancel-btn">Cancel</button>
+        <button class="btn btn-primary btn--sm" id="confirm-yes-btn">Yes</button>
+      </div>
+    </div>
+    <div id="confirm-step-2" style="display:none;">
+      <div class="confirm-icon" style="font-size:36px;text-align:center;margin-bottom:16px;">✍️</div>
+      <div class="confirm-title" style="text-align:center;font-family:var(--font-head);font-size:20px;font-weight:800;color:var(--text);margin-bottom:10px;">Type <span style="color:var(--accent);">Accept</span> to confirm</div>
+      <div class="confirm-desc" style="text-align:center;font-size:14px;color:#888;line-height:1.5;margin-bottom:24px;">Please type <strong>Accept</strong> below to delete this ID.</div>
+      <input type="text" id="confirm-accept-input" class="input-field" placeholder='Type "Accept"' autocomplete="off" style="width:100%;margin-bottom:8px;text-align:center;font-size:16px;letter-spacing:0.05em;" />
+      <p class="input-hint" id="confirm-accept-hint" style="text-align:center;"></p>
+      <div class="confirm-actions" style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+        <button class="btn btn-ghost btn--sm" id="confirm-accept-cancel-btn">Cancel</button>
+        <button class="btn btn-primary btn--sm" id="confirm-accept-btn" disabled>Accept</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

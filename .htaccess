@@ -1,0 +1,62 @@
+DirectoryIndex index.php index.html
+
+RewriteEngine On
+RewriteBase /
+
+# Serve existing files
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Serve app.js explicitly
+RewriteRule ^app\.js$ app.js [L]
+
+# API routes
+RewriteRule ^api/register$ api/register.php [L]
+RewriteRule ^api/login$ api/login.php [L]
+RewriteRule ^api/logout$ api/logout.php [L]
+RewriteRule ^api/check-session$ api/check-session.php [L]
+RewriteRule ^api/save-page$ api/save-page.php [L]
+RewriteRule ^api/storage-info$ api/storage-info.php [L]
+RewriteRule ^api/check-upload$ api/check-upload.php [L]
+RewriteRule ^api/public-page$ api/public-page.php [L]
+RewriteRule ^api/list-users$ api/list-users.php [L]
+RewriteRule ^api/analytics$ api/analytics.php [L]
+RewriteRule ^api/change-password$ api/change-password.php [L]
+RewriteRule ^api/test$ api/test.php [L]
+RewriteRule ^api/proxy-image$ api/proxy-image.php [L]
+RewriteRule ^api/get-aliases$ api/get-aliases.php [L]
+RewriteRule ^api/add-alias$ api/add-alias.php [L]
+RewriteRule ^api/check-alias$ api/check-alias.php [L]
+RewriteRule ^api/delete-alias$ api/delete-alias.php [L]
+RewriteRule ^api/send-email-code$ api/send-email-code.php [L]
+RewriteRule ^api/verify-email-code$ api/verify-email-code.php [L]
+RewriteRule ^api/link-email$ api/link-email.php [L]
+RewriteRule ^api/unlink-email$ api/unlink-email.php [L]
+RewriteRule ^api/reset-password-by-email$ api/reset-password-by-email.php [L]
+RewriteRule ^api/setup-totp$ api/setup-totp.php [L]
+RewriteRule ^api/verify-totp-setup$ api/verify-totp-setup.php [L]
+RewriteRule ^api/disable-totp$ api/disable-totp.php [L]
+RewriteRule ^api/check-2fa$ api/check-2fa.php [L]
+RewriteRule ^api/get-email-status$ api/get-email-status.php [L]
+RewriteRule ^api/verify-2fa-login$ api/verify-2fa-login.php [L]
+RewriteRule ^api/verify-totp-for-action$ api/verify-totp-for-action.php [L]
+RewriteRule ^api/list-templates$ api/list-templates.php [L]
+RewriteRule ^api/save-template$ api/save-template.php [L]
+RewriteRule ^api/apply-template$ api/apply-template.php [L]
+RewriteRule ^api/get-template$ api/get-template.php [L]
+RewriteRule ^api/delete-template$ api/delete-template.php [L]
+RewriteRule ^api/track-click$ api/track-click.php [L]
+RewriteRule ^api/link-stats$ api/link-stats.php [L]
+RewriteRule ^api/create-payment$ api/create-payment.php [L]
+RewriteRule ^api/check-payment$ api/check-payment.php [L]
+RewriteRule ^api/premium-status$ api/premium-status.php [L]
+RewriteRule ^api/crypto-webhook$ api/crypto-webhook.php [L]
+
+# Username routes - pass to index.php with query param
+RewriteCond %{REQUEST_URI} !api/
+RewriteCond %{REQUEST_URI} !\.(js|css|png|jpg|jpeg|gif|svg|ico|woff)$
+RewriteCond %{REQUEST_URI} !index\.php
+RewriteRule ^([a-z0-9_.]+)$ index.php?username=$1 [L,QSA]

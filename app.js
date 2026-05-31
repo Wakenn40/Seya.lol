@@ -125,6 +125,23 @@ const state = {
 };
 
 /* ================================================
+   CROSS-TAB SYNC (BroadcastChannel)
+   ================================================ */
+try {
+  window.__SYNC_CHANNEL__ = new BroadcastChannel('seya-lol-sync');
+  window.__SYNC_CHANNEL__.onmessage = (e) => {
+    if (e.data.type === 'displayName' && window.__PAGE_DATA__) {
+      const nameEl = document.getElementById('pub-name');
+      if (nameEl) {
+        nameEl.innerHTML = e.data.value;
+        const badgesContainer = nameEl.querySelector('.badges-panel');
+        if (badgesContainer) nameEl.appendChild(badgesContainer);
+      }
+    }
+  };
+} catch (_) {}
+
+/* ================================================
   DEFAULT PAGE DATA
   ================================================ */
 function getDefaultPageData() {
@@ -135,6 +152,8 @@ function getDefaultPageData() {
     bioHtml: 'Hey, this is my page ✨',
     avatar: '',
     music: { src: '', name: '', gain: 1, volume: 1 },
+    visualizer: { enabled: false, source: 'page', style: 'bars', color: '#00ff88', bars: 64, sensitivity: 1 },
+    visualizerScale: 1,
     linksEnabled: false,
     links: [],
     bg: 'bg-black',
@@ -182,7 +201,8 @@ function getDefaultPageData() {
       name: { x: 219, y: 240, w: 140, h: 30 },
       bio: { x: 219, y: 300, w: 140, h: 50 },
       links: { x: 219, y: 434, w: 232, h: 44 },
-      phone: { x: 0, y: 0, w: 280, h: 560 }
+      phone: { x: 0, y: 0, w: 280, h: 560 },
+      'visualizer-widget': { x: 219, y: 500, w: 280, h: 80 }
     },
     discordWidgets: false,
     discordWidgetTilt: false,
@@ -196,7 +216,7 @@ function getDefaultPageData() {
 }
 
 /* Widget effect helpers (global, used by both public and builder pages) */
-window.WIDGET_KEYS = ['spotify-widget', 'discord-widget', 'custom-player-widget'];
+window.WIDGET_KEYS = ['spotify-widget', 'discord-widget', 'custom-player-widget', 'visualizer-widget'];
 
 window.syncWidgetEffect = (key) => {
   let el = document.querySelector(`[data-editable="${key}"]`);
@@ -321,13 +341,17 @@ function syncBgAudioFromState() {
   if (musicBg.lastSrc !== src) {
     a.src = src;
     musicBg.lastSrc = src;
-    // Reset "manual stop" when a new track is uploaded
     musicBg.userStopped = false;
   }
 
-  // Clamp background volume
   musicBg.lastGain = gain;
-  a.volume = Math.max(0, Math.min(gain, userVol * gain));
+  const vol = Math.max(0, Math.min(gain, userVol * gain));
+  if (musicVisualizer.pageInited) {
+    a.volume = 0;
+    if (musicVisualizer.pageGain) musicVisualizer.pageGain.gain.value = vol;
+  } else {
+    a.volume = vol;
+  }
 }
 
 async function playBgMusic() {
@@ -445,7 +469,13 @@ function setupMusicDemoControls() {
       const pct = Math.max(0, Math.min(100, Number(volume.value)));
       const userVol = pct / 100;
       state.page.music.volume = userVol;
-      a.volume = Math.max(0, Math.min(gain, userVol * gain));
+      const vol = Math.max(0, Math.min(gain, userVol * gain));
+      if (musicVisualizer.pageInited && musicVisualizer.pageGain) {
+        a.volume = 0;
+        musicVisualizer.pageGain.gain.value = vol;
+      } else {
+        a.volume = vol;
+      }
       if (volumeVal) volumeVal.textContent = `${Math.round(pct)}%`;
     };
     volume.addEventListener('input', apply);
@@ -460,6 +490,463 @@ function setupMusicDemoControls() {
 
   // Initial paint
   syncMusicPreviewUi();
+}
+
+/* ================================================
+   MUSIC VISUALIZER — Web Audio API spectrum analyzer
+   ================================================ */
+const musicVisualizer = {
+  ctx: null,
+  pageSource: null,
+  pageGain: null,
+  cpSource: null,
+  cpGain: null,
+  analyser: null,
+  animId: null,
+  active: false,
+  currentSource: null,
+  pageInited: false,
+  cpInited: false,
+};
+
+function initVisualizerPageAudio() {
+  if (musicVisualizer.pageInited) return true;
+  const audioEl = ensureBgAudio();
+  if (!audioEl) return false;
+  try {
+    if (!musicVisualizer.ctx) {
+      musicVisualizer.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = musicVisualizer.ctx;
+    if (ctx.state === 'suspended') ctx.resume();
+    musicVisualizer.pageSource = ctx.createMediaElementSource(audioEl);
+    musicVisualizer.pageGain = ctx.createGain();
+    musicVisualizer.analyser = ctx.createAnalyser();
+    musicVisualizer.analyser.fftSize = 256;
+    musicVisualizer.pageSource.connect(musicVisualizer.pageGain);
+    musicVisualizer.pageGain.connect(musicVisualizer.analyser);
+    musicVisualizer.analyser.connect(ctx.destination);
+    audioEl.volume = 0;
+    musicVisualizer.pageInited = true;
+    return true;
+  } catch (e) {
+    console.warn('[Visualizer] init page audio failed:', e);
+    return false;
+  }
+}
+
+function initVisualizerCpAudio() {
+  if (musicVisualizer.cpInited) return true;
+  const audioEl = document.getElementById('custom-player-audio');
+  if (!audioEl) return false;
+  try {
+    if (!musicVisualizer.ctx) {
+      musicVisualizer.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = musicVisualizer.ctx;
+    if (ctx.state === 'suspended') ctx.resume();
+    musicVisualizer.cpSource = ctx.createMediaElementSource(audioEl);
+    musicVisualizer.cpGain = ctx.createGain();
+    musicVisualizer.analyser = ctx.createAnalyser();
+    musicVisualizer.analyser.fftSize = 256;
+    musicVisualizer.cpSource.connect(musicVisualizer.cpGain);
+    musicVisualizer.cpGain.connect(musicVisualizer.analyser);
+    musicVisualizer.analyser.connect(ctx.destination);
+    audioEl.volume = 0;
+    musicVisualizer.cpInited = true;
+    return true;
+  } catch (e) {
+    console.warn('[Visualizer] init cp audio failed:', e);
+    return false;
+  }
+}
+
+function syncVisualizerVolume() {
+  const viz = state.page.visualizer || {};
+  const gain = musicVisualizer[viz.source === 'custom-player' ? 'cpGain' : 'pageGain'];
+  if (gain) {
+    const effectiveGain = Math.max(0.05, Math.min(1, Number(state.page.music && state.page.music.gain ? state.page.music.gain : 1)));
+    const userVol = Math.max(0, Math.min(1, Number(state.page.music && state.page.music.volume != null ? state.page.music.volume : 1)));
+    gain.gain.value = Math.max(0, Math.min(effectiveGain, userVol * effectiveGain));
+  }
+}
+
+function ensureVisualizerActive() {
+  const viz = state.page.visualizer || {};
+  if (!viz.enabled) return false;
+
+  const targetSource = viz.source || 'page';
+  let ok = false;
+
+  if (targetSource === 'page') {
+    ok = initVisualizerPageAudio();
+    if (ok && musicVisualizer.cpInited && musicVisualizer.cpGain) {
+      musicVisualizer.cpGain.gain.value = 0;
+    }
+    if (ok && musicVisualizer.pageGain) {
+      musicVisualizer.pageGain.gain.value = 1;
+    }
+  } else {
+    ok = initVisualizerCpAudio();
+    if (ok && musicVisualizer.pageInited && musicVisualizer.pageGain) {
+      musicVisualizer.pageGain.gain.value = 0;
+    }
+    if (ok && musicVisualizer.cpGain) {
+      musicVisualizer.cpGain.gain.value = 1;
+    }
+  }
+
+  if (ok) {
+    if (musicVisualizer.ctx && musicVisualizer.ctx.state === 'suspended') {
+      musicVisualizer.ctx.resume();
+    }
+    musicVisualizer.active = true;
+    musicVisualizer.currentSource = targetSource;
+  }
+  return ok;
+}
+
+function destroyVisualizerAudio() {
+  if (musicVisualizer.animId) {
+    cancelAnimationFrame(musicVisualizer.animId);
+    musicVisualizer.animId = null;
+  }
+  if (musicVisualizer.pageInited && musicVisualizer.pageGain) {
+    // Restore gain to user volume instead of muting, since audio routes through Web Audio permanently
+    const userVol = Math.max(0, Math.min(1, Number(state.page.music && state.page.music.volume != null ? state.page.music.volume : 1)));
+    musicVisualizer.pageGain.gain.value = userVol;
+  }
+  if (musicVisualizer.cpInited && musicVisualizer.cpGain) {
+    const cpAudio = document.getElementById('custom-player-audio');
+    const cpVol = cpAudio && cpAudio.volume != null ? cpAudio.volume : 1;
+    musicVisualizer.cpGain.gain.value = cpVol;
+  }
+  musicVisualizer.active = false;
+  musicVisualizer.currentSource = null;
+}
+
+function startVisualizerLoop(canvas) {
+  stopVisualizerLoop();
+  if (!canvas) return;
+
+  const ctx2d = canvas.getContext('2d');
+  if (!ctx2d) return;
+
+  const analyser = musicVisualizer.analyser;
+  const hasAnalyser = !!analyser;
+  const bufferLength = hasAnalyser ? analyser.frequencyBinCount : 64;
+  const dataArray = new Uint8Array(bufferLength);
+  let fakePhase = 0;
+
+  function draw() {
+    musicVisualizer.animId = requestAnimationFrame(draw);
+
+    const viz = state.page.visualizer || {};
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx2d.clearRect(0, 0, w, h);
+
+    if (hasAnalyser) {
+      const sensitivity = viz.sensitivity || 1;
+      if (viz.style === 'wave') {
+        analyser.getByteTimeDomainData(dataArray);
+        renderWave(ctx2d, w, h, dataArray, bufferLength, viz.color || '#00ff88', sensitivity);
+      } else if (viz.style === 'circle') {
+        analyser.getByteFrequencyData(dataArray);
+        renderCircle(ctx2d, w, h, dataArray, bufferLength, viz.color || '#00ff88', sensitivity);
+      } else if (viz.style === 'flame') {
+        analyser.getByteFrequencyData(dataArray);
+        renderFlame(ctx2d, w, h, dataArray, bufferLength, viz.color || '#00ff88', sensitivity);
+      } else {
+        analyser.getByteFrequencyData(dataArray);
+        renderBars(ctx2d, w, h, dataArray, bufferLength, viz.color || '#00ff88', viz.bars || 64, sensitivity);
+      }
+    } else {
+      // Fallback: decorative animation when no analyser
+      fakePhase += 0.05;
+      const sensitivity = viz.sensitivity || 1;
+      for (let i = 0; i < bufferLength; i++) {
+        const t = fakePhase + i * 0.3;
+        dataArray[i] = Math.floor(128 + Math.sin(t) * 64 * sensitivity);
+        dataArray[i] = Math.min(255, Math.max(0, dataArray[i]));
+      }
+      const fbColor = viz.color || '#00ff88';
+      if (viz.style === 'wave') {
+        renderWave(ctx2d, w, h, dataArray, bufferLength, fbColor, 1);
+      } else {
+        renderBars(ctx2d, w, h, dataArray, bufferLength, fbColor, viz.bars || 64, 1);
+      }
+    }
+  }
+
+  draw();
+}
+
+function stopVisualizerLoop() {
+  if (musicVisualizer.animId) {
+    cancelAnimationFrame(musicVisualizer.animId);
+    musicVisualizer.animId = null;
+  }
+}
+
+function renderBars(ctx, w, h, data, len, color, barCount, sensitivity) {
+  const step = Math.max(1, Math.floor(len / barCount));
+  const barW = w / barCount;
+  ctx.fillStyle = color;
+  for (let i = 0; i < barCount; i++) {
+    const idx = Math.min(i * step, len - 1);
+    let val = data[idx] / 255;
+    val = Math.min(1, val * sensitivity);
+    const barH = val * h;
+    const x = i * barW;
+    ctx.fillRect(x + 1, h - barH, barW - 2, barH);
+  }
+}
+
+function renderWave(ctx, w, h, data, len, color, sensitivity) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < len; i++) {
+    let val = (data[i] - 128) / 128;
+    val = Math.max(-1, Math.min(1, val * sensitivity));
+    const x = (i / len) * w;
+    const y = h / 2 + val * (h / 2 - 4);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function renderCircle(ctx, w, h, data, len, color, sensitivity) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const radius = Math.min(w, h) / 3;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const step = Math.max(1, Math.floor(len / 128));
+  const count = Math.min(128, Math.floor(len / step));
+  for (let i = 0; i <= count; i++) {
+    const idx = Math.min(i * step, len - 1);
+    let val = data[idx] / 255;
+    val = Math.min(1, val * sensitivity);
+    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    const r = radius + val * (radius * 0.8);
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function renderFlame(ctx, w, h, data, len, color, sensitivity) {
+  const step = Math.max(1, Math.floor(len / 32));
+  const count = Math.min(32, Math.floor(len / step));
+  const barW = w / count;
+  ctx.fillStyle = color;
+  for (let i = 0; i < count; i++) {
+    const idx = Math.min(i * step, len - 1);
+    let val = data[idx] / 255;
+    val = Math.min(1, val * sensitivity);
+    const barH = val * h;
+    const x = i * barW;
+    const alpha = 1 - (i / count) * 0.6;
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(x, h - barH, barW - 1, barH);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function setupMusicVisualizer() {
+  const toggleBtn = document.getElementById('visualizer-toggle');
+  if (!toggleBtn) return;
+
+  const syncUI = () => {
+    const viz = state.page.visualizer || {};
+    toggleBtn.textContent = viz.enabled ? 'On' : 'Off';
+    toggleBtn.classList.toggle('btn--active', viz.enabled);
+
+    const controls = document.getElementById('visualizer-controls');
+    if (controls) controls.style.display = viz.enabled ? 'block' : 'none';
+  };
+
+  syncUI();
+
+  toggleBtn.addEventListener('click', () => {
+    pushHistory();
+    const viz = state.page.visualizer || {};
+    viz.enabled = !viz.enabled;
+    state.page.visualizer = viz;
+    syncUI();
+    markPageModified();
+    updateVisualizerRendering();
+  });
+
+  // Source selector
+  const sourceBtns = document.querySelectorAll('.visualizer-source-btn');
+  sourceBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      pushHistory();
+      const viz = state.page.visualizer || {};
+      viz.source = btn.dataset.source || 'page';
+      state.page.visualizer = viz;
+      sourceBtns.forEach(b => b.classList.toggle('btn--active', b === btn));
+      markPageModified();
+      updateVisualizerRendering();
+    });
+  });
+  const curSource = (state.page.visualizer && state.page.visualizer.source) || 'page';
+  sourceBtns.forEach(b => b.classList.toggle('btn--active', b.dataset.source === curSource));
+
+  // Style selector
+  const styleBtns = document.querySelectorAll('.visualizer-style-btn');
+  styleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      pushHistory();
+      const viz = state.page.visualizer || {};
+      viz.style = btn.dataset.style || 'bars';
+      state.page.visualizer = viz;
+      styleBtns.forEach(b => b.classList.toggle('btn--active', b === btn));
+      markPageModified();
+    });
+  });
+  const curStyle = (state.page.visualizer && state.page.visualizer.style) || 'bars';
+  styleBtns.forEach(b => b.classList.toggle('btn--active', b.dataset.style === curStyle));
+
+  // Color
+  const colorInput = document.getElementById('visualizer-color');
+  if (colorInput) {
+    colorInput.value = (state.page.visualizer && state.page.visualizer.color) || '#00ff88';
+    colorInput.addEventListener('input', () => {
+      pushHistory();
+      const viz = state.page.visualizer || {};
+      viz.color = colorInput.value;
+      state.page.visualizer = viz;
+      markPageModified();
+    });
+  }
+
+  // Sensitivity
+  const sensSlider = document.getElementById('visualizer-sensitivity');
+  if (sensSlider) {
+    sensSlider.value = String((state.page.visualizer && state.page.visualizer.sensitivity) || 1);
+    const sensVal = document.getElementById('visualizer-sensitivity-val');
+    sensSlider.addEventListener('input', () => {
+      pushHistory();
+      const viz = state.page.visualizer || {};
+      viz.sensitivity = Number(sensSlider.value);
+      state.page.visualizer = viz;
+      if (sensVal) sensVal.textContent = viz.sensitivity.toFixed(1) + 'x';
+      markPageModified();
+    });
+  }
+
+  // Eagerly init page audio for Web Audio routing
+  const a = ensureBgAudio();
+  if (a) {
+    try {
+      if (!musicVisualizer.ctx) {
+        musicVisualizer.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      musicVisualizer.pageSource = musicVisualizer.ctx.createMediaElementSource(a);
+      musicVisualizer.pageGain = musicVisualizer.ctx.createGain();
+      musicVisualizer.analyser = musicVisualizer.ctx.createAnalyser();
+      musicVisualizer.analyser.fftSize = 256;
+      musicVisualizer.pageSource.connect(musicVisualizer.pageGain);
+      musicVisualizer.pageGain.connect(musicVisualizer.analyser);
+      musicVisualizer.analyser.connect(musicVisualizer.ctx.destination);
+      a.volume = 0;
+      musicVisualizer.pageInited = true;
+    } catch (e) {
+      console.warn('[Visualizer] eager init failed:', e);
+    }
+  }
+}
+
+function updateVisualizerRendering() {
+  const viz = state.page.visualizer || {};
+
+  if (!viz.enabled) {
+    const previewContainer = document.getElementById('preview-visualizer-widget-container');
+    if (previewContainer) previewContainer.style.display = 'none';
+    const publicContainer = document.getElementById('visualizer-widget-container');
+    if (publicContainer) { publicContainer.style.display = 'none'; publicContainer.innerHTML = ''; }
+    destroyVisualizerAudio();
+    return;
+  }
+
+  ensureVisualizerActive();
+  syncVisualizerVolume();
+
+  const vizLayout = state.page.layout && state.page.layout['visualizer-widget'];
+  const boxW = vizLayout && vizLayout.w ? vizLayout.w : 280;
+  const boxH = vizLayout && vizLayout.h ? vizLayout.h : 80;
+
+  // Update preview
+  const previewContainer = document.getElementById('preview-visualizer-widget-container');
+  if (previewContainer) {
+    previewContainer.style.display = 'block';
+    if (typeof ensureResizeHandle === 'function') ensureResizeHandle(previewContainer);
+    if (typeof ensureRotateHandle === 'function') ensureRotateHandle(previewContainer);
+    const scale = state.page.visualizerScale ?? 1;
+    let inner = previewContainer.querySelector('.visualizer-inner');
+    if (!inner) {
+      inner = document.createElement('div');
+      inner.className = 'visualizer-inner';
+      previewContainer.appendChild(inner);
+    }
+    inner.style.cssText = `transform:scale(${scale});transform-origin:top left;width:100%;height:100%;`;
+    let canvas = inner.querySelector('.visualizer-canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.className = 'visualizer-canvas';
+      canvas.style.cssText = 'width:100%;height:100%;display:block;';
+      inner.appendChild(canvas);
+    }
+    const rect = previewContainer.getBoundingClientRect();
+    canvas.width = Math.round(rect.width) || boxW;
+    canvas.height = Math.round(rect.height) || boxH;
+    startVisualizerLoop(canvas);
+  }
+
+  // Update public - add to public-stage-inner
+  const pubInner = document.querySelector('.public-stage-inner');
+  if (pubInner) {
+    let publicContainer = document.getElementById('visualizer-widget-container');
+    if (!publicContainer) {
+      publicContainer = document.createElement('div');
+      publicContainer.className = 'visualizer-widget-container';
+      publicContainer.id = 'visualizer-widget-container';
+      publicContainer.setAttribute('data-public', 'visualizer-widget');
+      pubInner.appendChild(publicContainer);
+    }
+    if (!publicContainer.querySelector('.visualizer-inner')) {
+      const inner = document.createElement('div');
+      inner.className = 'visualizer-inner';
+      publicContainer.appendChild(inner);
+    }
+    publicContainer.style.display = 'block';
+    const scale = state.page.visualizerScale ?? 1;
+    const inner = publicContainer.querySelector('.visualizer-inner');
+    if (inner) {
+      inner.style.cssText = `transform:scale(${scale});transform-origin:top left;width:100%;height:100%;`;
+      let canvas = inner.querySelector('.visualizer-canvas');
+      if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.className = 'visualizer-canvas';
+        canvas.style.cssText = 'width:100%;height:100%;display:block;';
+        inner.appendChild(canvas);
+      }
+      const rect = publicContainer.getBoundingClientRect();
+      canvas.width = Math.round(rect.width) || boxW;
+      canvas.height = Math.round(rect.height) || boxH;
+      startVisualizerLoop(canvas);
+    }
+  }
 }
 
 /* ================================================
@@ -1337,6 +1824,7 @@ async function checkSession() {
       syncPublicUrlLabels();
       syncDiscordUI();
       load2FAStatus();
+      loadPremiumStatus();
       
       const editNameEl = document.getElementById('edit-display-name');
       if (editNameEl) editNameEl.value = state.page.displayName || '';
@@ -3815,6 +4303,16 @@ function applyBackgroundImages() {
       stageInner.style.backgroundSize = 'cover';
       stageInner.style.backgroundPosition = 'center';
       stageInner.style.backgroundRepeat = 'no-repeat';
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const img = new Image();
+      const setVpScale = () => {
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          stageInner.style.backgroundSize = (img.naturalWidth / img.naturalHeight > vw / vh) ? `auto ${vh}px` : `${vw}px auto`;
+        }
+      };
+      img.onload = setVpScale;
+      img.src = state.page.bgImageGlobal;
     } else {
       stageInner.style.backgroundImage = '';
       stageInner.style.backgroundSize = '';
@@ -4185,12 +4683,22 @@ function setupProfileInputs() {
   const bioInput = document.getElementById('edit-bio');
   if (nameInput) {
     nameInput.addEventListener('focus', () => pushHistory());
+    let nameSaveTimer;
     nameInput.addEventListener('input', e => {
       state.page.displayName = e.target.value;
       state.page.displayNameHtml = escapeHtml(e.target.value || '@username');
       state.page.textManualSize.name = false;
       syncPublicUrlLabels();
       updatePreview();
+      const pubScreen = document.getElementById('screen-public');
+      if (pubScreen && pubScreen.classList.contains('active')) updatePublicPage();
+      clearTimeout(nameSaveTimer);
+      nameSaveTimer = setTimeout(() => {
+        savePageToServer(false);
+        if (window.__SYNC_CHANNEL__) {
+          window.__SYNC_CHANNEL__.postMessage({ type: 'displayName', value: state.page.displayNameHtml || state.page.displayName });
+        }
+      }, 500);
     });
   }
   if (bioInput) {
@@ -4257,7 +4765,7 @@ function applyFadeIn() {
   const publicInner = document.querySelector('.public-stage-inner');
 
   const regSelector = '.phone-frame, .page-avatar, .page-name, .page-bio, .page-link-btn, .page-link-btn-icon, .public-custom-object';
-  const widgetSelector = '.spotify-widget-container, .discord-widget-container, .custom-player-widget-container';
+  const widgetSelector = '.spotify-widget-container, .discord-widget-container, .custom-player-widget-container, .visualizer-widget-container';
   const allSelector = regSelector + ', ' + widgetSelector;
 
   const animateEls = (els, delay) => {
@@ -4985,7 +5493,7 @@ function applyPublicCustomObjectsLayout(scale = 1) {
 }
 
 function applyWidgetLayout() {
-  const widgetKeys = ['spotify-widget', 'discord-widget', 'custom-player-widget'];
+  const widgetKeys = ['spotify-widget', 'discord-widget', 'custom-player-widget', 'visualizer-widget'];
   const stageInner = document.getElementById('preview-stage-inner');
   if (!stageInner) return;
   widgetKeys.forEach((key) => {
@@ -5001,7 +5509,7 @@ function applyWidgetLayout() {
 }
 
 function applyPublicWidgetLayout(inner) {
-  const widgetKeys = ['spotify-widget', 'discord-widget', 'custom-player-widget'];
+  const widgetKeys = ['spotify-widget', 'discord-widget', 'custom-player-widget', 'visualizer-widget'];
   if (!inner) return;
   widgetKeys.forEach((key) => {
     const el = inner.querySelector(`[data-public="${key}"]`);
@@ -5280,11 +5788,15 @@ function updatePublicPage() {
           a.addEventListener('click', (e) => {
             e.preventDefault();
             copyToClipboardWithToast(copyData);
+            trackLinkClick(link.url || '', link.label || '');
           });
         } else {
           a.href = normalizeUrl(link.url);
           a.target = '_blank';
           a.rel = 'noopener noreferrer';
+          a.addEventListener('click', () => {
+            trackLinkClick(link.url || '', link.label || '');
+          });
         }
 
         if (hasCustomIcon) {
@@ -5372,6 +5884,7 @@ function updatePublicPage() {
   updatePublicSpotifyWidget();
     updateDiscordWidgets();
     renderPublicCustomPlayer();
+    updateVisualizerRendering();
     updateAllWidgetEffects();
     applyFadeIn();
     setupPublicMusicVolume();
@@ -6584,7 +7097,7 @@ function setupPreviewEditor() {
     const customObj = ev.target.closest('.custom-object[data-editable]');
     const defaultObj = ev.target.closest('#preview-stage-inner > [data-editable="avatar"], #preview-stage-inner > [data-editable="name"], #preview-stage-inner > [data-editable="bio"]');
     const linkBtn = ev.target.closest('[data-editable^="link-"]');
-    const widgetEl = ev.target.closest('[data-editable="spotify-widget"], [data-editable="discord-widget"], [data-editable="custom-player-widget"]');
+    const widgetEl = ev.target.closest('[data-editable="spotify-widget"], [data-editable="discord-widget"], [data-editable="custom-player-widget"], [data-editable="visualizer-widget"]');
     const target = phone || customObj || defaultObj || linkBtn || widgetEl;
     
     if (!target) return;
@@ -6610,7 +7123,7 @@ function setupPreviewEditor() {
     const isTextObject = key === 'name' || key === 'bio';
 
     if (!isDefaultElement && !isLinkButton && !state.page.layout[key]) {
-      if (key && (key === 'spotify-widget' || key === 'discord-widget' || key === 'custom-player-widget')) {
+      if (key && (key === 'spotify-widget' || key === 'discord-widget' || key === 'custom-player-widget' || key === 'visualizer-widget')) {
         state.page.layout[key] = {
           x: target.offsetLeft,
           y: target.offsetTop,
@@ -6826,7 +7339,7 @@ function setupPreviewEditor() {
       next.h = size;
     }
     // Allow phone and stage-level objects to move freely beyond bounds
-    const isStageObj = key === 'phone' || key.startsWith('obj-') || key.startsWith('link-') || ['spotify-widget', 'discord-widget', 'custom-player-widget', 'avatar', 'name', 'bio', 'links'].includes(key);
+    const isStageObj = key === 'phone' || key.startsWith('obj-') || key.startsWith('link-') || ['spotify-widget', 'discord-widget', 'custom-player-widget', 'visualizer-widget', 'avatar', 'name', 'bio', 'links'].includes(key);
     if (!isStageObj) {
       next.x = Math.max(0, Math.min(next.x, bounds.width - next.w));
       next.y = Math.max(0, Math.min(next.y, bounds.height - next.h));
@@ -8907,6 +9420,13 @@ const BADGE_DEFS = [
   { name: 'staff',  label: 'Staff',  users: ['j'] }
 ];
 
+function createRankBadgeHTML(rank) {
+  let tier = 'bronze';
+  if (rank <= 10) tier = 'gold';
+  else if (rank <= 20) tier = 'silver';
+  return `<span class="lb-rank-badge lb-rank-badge--${tier}"><span class="lb-rank-num">${rank}</span></span>`;
+}
+
 function renderBadges(container) {
   if (!container) return;
   const old = container.querySelector('.badges-panel');
@@ -8916,7 +9436,6 @@ function renderBadges(container) {
   const userBadges = BADGE_DEFS.filter(b =>
     b.everyone || (b.users && b.users.includes(owner))
   );
-  if (!userBadges.length) return;
   const panel = document.createElement('div');
   panel.className = 'badges-panel';
   panel.style.marginLeft = '18px';
@@ -8925,6 +9444,7 @@ function renderBadges(container) {
     const glowColorMap = { white: '#fff', black: '#000', red: '#ff3232', blue: '#3282ff', gold: '#ffd700', green: '#32c864', pink: '#ff50b4', purple: '#a050ff' };
     panel.style.setProperty('--badge-color', glowColorMap[state.page.badgesColorName] || '#fff');
   }
+  let hasContent = userBadges.length > 0;
   const colorSuffix = state.page.badgesColorName ? '_' + state.page.badgesColorName : '';
   for (const b of userBadges) {
     const src = '/Badges/' + b.name + colorSuffix + '.webp';
@@ -8939,7 +9459,28 @@ function renderBadges(container) {
     wrapper.appendChild(img);
     panel.appendChild(wrapper);
   }
+  const rankWrapper = document.createElement('span');
+  rankWrapper.className = 'badge-icon-wrapper lb-rank-badge-wrapper';
+  rankWrapper.dataset.label = 'Leaderboard Rank';
+  rankWrapper.style.display = 'none';
+  panel.appendChild(rankWrapper);
+  if (!hasContent) panel.style.display = 'none';
   container.appendChild(panel);
+  if (owner) {
+    fetch('/api/user-rank.php?user=' + encodeURIComponent(owner))
+      .then(r => r.json())
+      .then(data => {
+        if (data.rank && data.rank <= 50) {
+          rankWrapper.style.display = '';
+          rankWrapper.innerHTML = createRankBadgeHTML(data.rank);
+          panel.style.display = '';
+        }
+        if (!userBadges.length && rankWrapper.style.display === '') {
+          panel.style.display = 'none';
+        }
+      })
+      .catch(() => {});
+  }
 }
 
 function updatePreview() {
@@ -9091,6 +9632,7 @@ function updatePreview() {
 updatePreviewSpotifyWidget();
   renderDiscordWidget('preview-discord-widget-container');
   updateCustomPlayerPreview();
+  updateVisualizerRendering();
   updateAllWidgetEffects();
   initAllTypewriters(document.getElementById('prev-name'));
   initAllTypewriters(document.getElementById('prev-bio'));
@@ -9409,14 +9951,23 @@ function copyLink() {
    ================================================ */
 let toastTimer = null;
 
-function showToast(msg) {
+function showToast(msg, duration) {
   const toast = document.getElementById('toast');
   if (!toast) return;
   toast.textContent = msg;
   toast.classList.add('show');
 
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+  if (duration !== 0) {
+    toastTimer = setTimeout(() => toast.classList.remove('show'), duration || 2600);
+  }
+}
+
+function hideToast() {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.classList.remove('show');
+  if (toastTimer) clearTimeout(toastTimer);
 }
 
 function copyToClipboardWithToast(text) {
@@ -9558,8 +10109,21 @@ function setupGlobalActions() {
         window.open('/' + slug, '_blank');
         break;
 
+      case 'pricing-free':
+        if (authToken) {
+          showScreen('dashboard');
+        } else {
+          setAuthMode('signup');
+          showScreen('auth', { payload: { authMode: 'signup' } });
+        }
+        break;
+
+      case 'pricing-premium':
+      case 'premium-card':
+        startPremiumPayment();
+        break;
+
       case 'open-templates':
-        toggleTemplatesSection();
         break;
 
       case 'create-template':
@@ -10983,6 +11547,7 @@ function init() {
   safeSetup(setupClickToEnter, 'setupClickToEnter');
   safeSetup(setupMusicUpload, 'setupMusicUpload');
   safeSetup(setupMusicDemoControls, 'setupMusicDemoControls');
+  safeSetup(setupMusicVisualizer, 'setupMusicVisualizer');
   safeSetup(setupLinks, 'setupLinks');
   safeSetup(setupLinkIcons, 'setupLinkIcons');
   safeSetup(setupBackground, 'setupBackground');
@@ -11103,6 +11668,12 @@ function updateLandingButtons() {
   } else {
     guestCta.style.display = 'flex';
     userCta.style.display = 'none';
+  }
+
+  // Update pricing button text based on auth/premium
+  const premiumBtn = document.getElementById('btn-pricing-premium');
+  if (premiumBtn) {
+    premiumBtn.textContent = authToken ? 'Unlock Premium →' : 'Get Premium →';
   }
 }
 
@@ -11246,8 +11817,8 @@ const medalColors = [
       });
 
       const count = data.users.length;
-      if (count < 30) {
-        for (let emptyRank = count + 1; emptyRank <= 30; emptyRank++) {
+      if (count < 50) {
+        for (let emptyRank = count + 1; emptyRank <= 50; emptyRank++) {
           const rankLabel = String(emptyRank).padStart(2, '0');
           const placeHolder = document.createElement('div');
           placeHolder.style.cssText = `display:flex;align-items:center;gap:12px;background:${colors.surface};border:1px solid ${colors.border};border-radius:14px;padding:11px 14px;text-decoration:none;box-sizing:border-box;opacity:0.35;`;
@@ -11301,12 +11872,9 @@ let analyticsLoaded = false;
 
 function toggleAnalyticsPanel() {
   const panel = document.getElementById('analytics-panel');
-  if (!panel) {
-    console.log('Analytics panel not found');
-    return;
-  }
+  const linkPanel = document.getElementById('link-stats-panel');
   
-  console.log('toggleAnalyticsPanel, has hidden class:', panel.classList.contains('hidden'));
+  if (!panel) return;
   
   if (panel.classList.contains('hidden')) {
     panel.classList.remove('hidden');
@@ -11314,8 +11882,13 @@ function toggleAnalyticsPanel() {
       loadAnalytics();
       analyticsLoaded = true;
     }
+    if (linkPanel) {
+      linkPanel.classList.remove('hidden');
+      loadLinkStats();
+    }
   } else {
     panel.classList.add('hidden');
+    if (linkPanel) linkPanel.classList.add('hidden');
   }
 }
 
@@ -11670,7 +12243,7 @@ async function loadAnalytics() {
   }
 
   try {
-    const res = await fetch('/api/analytics', {
+    const res = await fetch('/api/analytics?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -11826,6 +12399,123 @@ function setupAnalyticsPeriodTabs() {
   });
 }
 
+/* ================================================
+   LINK CLICK TRACKING
+   ================================================ */
+function trackLinkClick(linkUrl, linkTitle) {
+  const username = window.__PUBLIC_USER__ || getPublicSlug();
+  if (!username || !linkUrl) return;
+
+  const payload = { username, linkUrl, linkTitle: linkTitle || '' };
+  
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon('/api/track-click', JSON.stringify(payload));
+  } else {
+    fetch('/api/track-click', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  }
+}
+
+/* ================================================
+   LINK STATS PANEL
+   ================================================ */
+let linkStatsPeriod = '7d';
+
+function toggleLinkStatsPanel() {
+  const panel = document.getElementById('link-stats-panel');
+  if (!panel) return;
+  
+  if (panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    loadLinkStats();
+  } else {
+    panel.classList.add('hidden');
+  }
+}
+
+async function loadLinkStats() {
+  if (!authToken) return;
+  
+  try {
+    const res = await fetch('/api/link-stats?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ period: linkStatsPeriod })
+    });
+    const data = await res.json();
+    if (data.success) {
+      updateLinkStatsUI(data);
+    }
+  } catch (e) {
+    console.error('Failed to load link stats:', e);
+  }
+}
+
+function updateLinkStatsUI(data) {
+  const body = document.getElementById('link-stats-body');
+  const totalEl = document.getElementById('link-stats-total');
+  if (!body) return;
+
+  if (totalEl) totalEl.textContent = data.totalClicks || 0;
+
+  if (!data.links || data.links.length === 0) {
+    body.innerHTML = '<div class="link-stats-empty">No link clicks recorded yet</div>';
+    return;
+  }
+
+  const maxClicks = Math.max(...data.links.map(l => parseInt(l.clicks)), 1);
+  const rows = data.links.map(link => {
+    const pct = maxClicks > 0 ? (parseInt(link.clicks) / maxClicks) * 100 : 0;
+    const service = detectServiceFromUrl(link.url);
+    let iconHtml = '';
+    if (link.icon && (link.icon.startsWith('data:') || link.icon.startsWith('http'))) {
+      iconHtml = `<img src="${escapeHtml(link.icon)}" alt="" style="width:22px;height:22px;object-fit:contain;">`;
+    } else if (service && serviceIcons[service]) {
+      iconHtml = serviceIcons[service];
+    } else if (link.emoji) {
+      iconHtml = escapeHtml(link.emoji);
+    } else {
+      iconHtml = '🔗';
+    }
+    const title = link.title
+      ? escapeHtml(link.title)
+      : '';
+    return `
+      <div class="link-stat-row">
+        <div class="link-stat-info">
+          <div class="link-stat-icon">${iconHtml}</div>
+          <div class="link-stat-title">${title}</div>
+        </div>
+        <div class="link-stat-bar-wrap">
+          <div class="link-stat-bar-bg">
+            <div class="link-stat-bar-fill" style="width:${pct}%"></div>
+          </div>
+          <span class="link-stat-count">${link.clicks}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  body.innerHTML = rows;
+}
+
+function setupLinkStatsPeriodTabs() {
+  document.querySelectorAll('[data-link-period]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('[data-link-period]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      linkStatsPeriod = tab.dataset.linkPeriod;
+      loadLinkStats();
+    });
+  });
+}
+
 function setupAlphaTilt() {
   const badge = document.querySelector('.alpha-badge[data-tilt]');
   if (!badge) return;
@@ -11920,6 +12610,125 @@ function update2FAUI(data) {
 function update2faMenuItem(enabled) {
   const btn = document.querySelector('[data-action="toggle-2fa"] span');
   if (btn) btn.textContent = enabled ? 'Disable 2FA' : 'Connect 2FA';
+}
+
+/* ================================================
+   PREMIUM / PAYMENT
+   ================================================ */
+
+let _premiumPolling = null;
+
+async function loadPremiumStatus() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/premium-status?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    updatePremiumUI(data);
+    return data;
+  } catch (e) {
+    console.error('loadPremiumStatus:', e);
+  }
+}
+
+function updatePremiumUI(data) {
+  const badge = document.getElementById('dash-premium-badge');
+  const desc = document.getElementById('dash-premium-desc');
+  const cta = document.getElementById('dash-premium-cta');
+  if (!badge || !desc || !cta) return;
+
+  if (data && data.premium) {
+    badge.style.display = 'inline';
+    desc.textContent = 'Lifetime premium — thank you!';
+    cta.innerHTML = '<span style="font-size:11px;color:#7c5ab8;">Purchased ' + (data.purchase_date ? new Date(data.purchase_date).toLocaleDateString() : '') + '</span>';
+  } else {
+    badge.style.display = 'none';
+    desc.textContent = 'One-time payment. Yours forever.';
+    cta.innerHTML = '<span style="font-size:11px;color:#7c5ab8;font-weight:600;">$3.99 USDT — Unlock →</span>';
+  }
+}
+
+async function startPremiumPayment() {
+  if (!authToken) {
+    setAuthMode('signup');
+    showScreen('auth', { payload: { authMode: 'signup' } });
+    return;
+  }
+
+  // Check if already premium
+  const status = await loadPremiumStatus();
+  if (status && status.premium) {
+    showToast('You already have lifetime premium!', 3000);
+    return;
+  }
+
+  showToast('Creating payment invoice...', 0);
+
+  try {
+    const res = await fetch('/api/create-payment?token=' + encodeURIComponent(authToken), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+
+    hideToast();
+
+    if (data.error) {
+      if (data.premium) {
+        showToast('You already have premium!', 3000);
+        loadPremiumStatus();
+      } else {
+        showToast('Error: ' + data.error, 4000);
+      }
+      return;
+    }
+
+    if (data.pay_url) {
+      // Open CryptoBot payment page
+      showToast('Opening payment page...', 4000);
+      window.open(data.pay_url, '_blank');
+
+      // Start polling for payment confirmation
+      startPaymentPolling();
+    }
+  } catch (e) {
+    hideToast();
+    console.error('startPremiumPayment:', e);
+    showToast('Payment creation failed', 3000);
+  }
+}
+
+function startPaymentPolling() {
+  if (_premiumPolling) return;
+
+  showToast('Waiting for payment... Check the opened tab.', 0);
+
+  _premiumPolling = setInterval(async () => {
+    try {
+      const res = await fetch('/api/check-payment?token=' + encodeURIComponent(authToken), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+
+      if (data.premium) {
+        clearInterval(_premiumPolling);
+        _premiumPolling = null;
+        hideToast();
+        showToast('Payment confirmed! Welcome to Premium! 🎉', 5000);
+        loadPremiumStatus();
+      } else if (data.status === 'expired' || data.status === 'cancelled') {
+        clearInterval(_premiumPolling);
+        _premiumPolling = null;
+        hideToast();
+        showToast('Payment expired or cancelled.', 3000);
+      }
+    } catch (e) {
+      console.error('payment polling error:', e);
+    }
+  }, 5000); // Poll every 5 seconds
 }
 
 let pending2FASecret = '';
@@ -12287,6 +13096,7 @@ async function submit2FALogin() {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupAnalyticsPeriodTabs();
+  setupLinkStatsPeriodTabs();
   setupAlphaTilt();
 });
 
@@ -12367,37 +13177,93 @@ function renderTemplatesGrid(templates) {
   const grid = document.getElementById('templates-grid');
   if (!grid) return;
   
-  grid.innerHTML = templates.map(t => `
-    <div class="template-card" data-template-id="${t.id}" onclick="openTemplateModal(${t.id})">
-      <div class="template-card-header">
-        <div>
-          <div class="template-card-name">${escapeHtml(t.name)}</div>
-          <div class="template-card-creator">@${escapeHtml(t.creator)}</div>
-        </div>
-      </div>
-      <div class="template-card-preview">
-        <div class="mini-phone">
-          <div class="phone-frame mini">
-            <div class="phone-screen" style="background:${getRandomBg()}">
-              <div class="preview-content" style="padding:8px;text-align:center">
-                <div class="preview-avatar" style="width:24px;height:24px;margin:0 auto 4px;background:var(--surface-3);border-radius:50%"></div>
-                <div class="preview-name" style="height:10px;background:var(--surface-3);border-radius:4px;margin-bottom:4px"></div>
-                <div class="preview-bio" style="height:6px;background:var(--surface-4);border-radius:3px;width:70%;margin:0 auto"></div>
-              </div>
+  grid.innerHTML = templates.map(t => {
+    const p = t.preview;
+    let phoneContent = '';
+    if (p) {
+      const bgClass = p.bg || 'bg-black';
+      const accent = p.accentColor || '#d6d6d6';
+      const font = p.font || 'Syne';
+      const nameSize = Math.round((p.nameSize || 22) * 0.4);
+      const phoneW = p.phoneW || 280;
+      const phoneH = p.phoneH || 560;
+      const phoneX = p.phoneX || 0;
+      const phoneY = p.phoneY || 0;
+      const deleted = p.deleted || {};
+      const br = p.phoneBorderRadius || 42;
+
+      const avatarHtml = deleted.avatar ? '' : (() => {
+        if (p.avatar) {
+          return `<img src="${p.avatar}" style="position:absolute;left:0;top:0;width:100%;height:100%;border-radius:50%;object-fit:cover" />`;
+        }
+        return `<div style="position:absolute;left:0;top:0;width:100%;height:100%;border-radius:50%;background:rgba(255,255,255,0.1)"></div>`;
+      })();
+
+      const nameText = p.displayNameHtml || escapeHtml(p.displayName || '@username');
+
+      const linksHtml = p.linksCount > 0 ? `<div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:4px">${Array(Math.min(p.linksCount, 3)).fill(0).map(() => `<div style="width:10px;height:10px;border-radius:50%;background:${accent}"></div>`).join('')}${p.linksCount > 3 ? `<div style="font-size:6px;color:rgba(255,255,255,0.5);display:flex;align-items:center">+${p.linksCount - 3}</div>` : ''}</div>` : '';
+
+      const objBadge = p.customObjectsCount > 0 ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.5);color:rgba(255,255,255,0.7);font-size:5px;padding:1px 3px;border-radius:3px">${p.customObjectsCount} obj</div>` : '';
+
+      const previewScale = 0.3;
+      const _bgMap = {
+        'bg-black': '#080808',
+        'bg-purple': 'linear-gradient(155deg, #1a0533, #2d0852)',
+        'bg-navy': 'linear-gradient(155deg, #020b18, #0a1628)',
+        'bg-forest': 'linear-gradient(155deg, #030f07, #0d2b14)',
+        'bg-charcoal': 'linear-gradient(155deg, #141414, #1f1f1f)',
+        'bg-rose': 'linear-gradient(155deg, #1a040f, #2b0518)',
+      };
+      const bgValue = _bgMap[bgClass] || '#080808';
+      phoneContent = `
+        <div style="width:${Math.round(phoneW * previewScale)}px;height:${Math.round(phoneH * previewScale)}px;overflow:hidden;position:relative">
+          <div style="width:${phoneW}px;height:${phoneH}px;border-radius:${br}px;overflow:hidden;position:relative;background:${bgValue};transform:scale(${previewScale});transform-origin:top left">
+            <div class="phone-inner" style="position:relative;width:100%;height:100%;overflow:hidden">
+              <div style="position:absolute;left:50%;top:18%;width:40px;height:40px;transform:translateX(-50%)">${avatarHtml}</div>
+              <div style="position:absolute;left:50%;top:36%;transform:translateX(-50%);font-family:'${font}',sans-serif;font-size:${Math.round(nameSize * 0.55)}px;font-weight:700;color:${accent};text-align:center;white-space:nowrap">${nameText}</div>
+              ${linksHtml}
+              ${objBadge}
             </div>
           </div>
         </div>
-      </div>
-      <div class="template-card-stats">
-        <span class="template-card-uses">👤 ${t.usage_count}</span>
-      </div>
-      ${t.tags && t.tags.length > 0 ? `
-        <div class="template-card-tags">
-          ${t.tags.slice(0, 3).map(tag => `<span class="template-card-tag">${escapeHtml(tag)}</span>`).join('')}
+      `;
+    } else {
+      phoneContent = `
+        <div style="width:100px;height:200px;overflow:hidden;position:relative">
+          <div class="phone-screen mini" style="width:280px;height:560px;background:var(--surface-2)">
+            <div style="position:relative;width:100%;height:100%;overflow:hidden;border-radius:22px">
+              <div style="position:absolute;left:50%;top:18%;width:32px;height:32px;transform:translateX(-50%);border-radius:50%;background:var(--surface-3)"></div>
+              <div style="position:absolute;left:50%;top:36%;width:80px;height:10px;transform:translateX(-50%);background:var(--surface-3);border-radius:4px"></div>
+            </div>
+          </div>
         </div>
-      ` : ''}
-    </div>
-  `).join('');
+      `;
+    }
+
+    return `
+      <div class="template-card" data-template-id="${t.id}" onclick="openTemplateModal(${t.id})">
+        <div class="template-card-header">
+          <div>
+            <div class="template-card-name">${escapeHtml(t.name)}</div>
+            <div class="template-card-creator">@${escapeHtml(t.creator)}</div>
+          </div>
+        </div>
+        <div class="template-card-preview">
+          <div class="mini-phone">
+            ${phoneContent}
+          </div>
+        </div>
+        <div class="template-card-stats">
+          <span class="template-card-uses">👤 ${t.usage_count}</span>
+        </div>
+        ${t.tags && t.tags.length > 0 ? `
+          <div class="template-card-tags">
+            ${t.tags.slice(0, 3).map(tag => `<span class="template-card-tag">${escapeHtml(tag)}</span>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
 }
 
 function getRandomBg() {
@@ -12422,6 +13288,7 @@ async function openTemplateModal(templateId) {
   
   if (loading) loading.style.display = 'block';
   if (content) content.style.display = 'none';
+  modal.classList.remove('hidden');
   modal.classList.add('show');
   modal.style.display = 'flex';
   
@@ -12467,23 +13334,124 @@ function renderTemplateModal(template) {
 function renderTemplateMiniPreview(pageData) {
   const screen = document.getElementById('templates-preview-screen');
   if (!screen || !pageData) return;
-  
+
   const bgClass = pageData.bg || 'bg-black';
-  screen.className = 'phone-screen ' + bgClass;
+
+  const font = pageData.font || 'Syne';
+  const nameSize = pageData.nameSize || 22;
+  const accentColor = pageData.accentColor || '#d6d6d6';
+  const layout = pageData.layout || {};
+  const deleted = pageData.deleted || {};
+  const phoneLayout = layout.phone || {};
+  const phoneX = Number(phoneLayout.x) || 0;
+  const phoneY = Number(phoneLayout.y) || 0;
+  const phoneW = Number(phoneLayout.w) || 280;
+  const phoneH = Number(phoneLayout.h) || 560;
+
+  screen.className = 'phone-screen mini ' + bgClass;
   screen.style.setProperty('--page-accent', pageData.accentColor || '#d6d6d6');
-  
-  const avatarHtml = pageData.avatar 
-    ? `<img src="${pageData.avatar}" alt="Avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover" />`
-    : `<div style="width:32px;height:32px;border-radius:50%;background:var(--surface-3);margin:0 auto"></div>`;
-  
-  const nameText = pageData.displayNameHtml || pageData.displayName || '@username';
-  const bioText = escapeHtml(pageData.bio || '');
-  
+  screen.style.width = phoneW + 'px';
+  screen.style.height = phoneH + 'px';
+  const phoneRotate = phoneLayout.rotate || 0;
+  const phoneBorderRadius = pageData.phoneBorderRadius || 42;
+  const btnStyle = pageData.btnStyle || '';
+
+  let phoneClasses = 'phone-frame';
+  if (bgClass) phoneClasses += ' ' + bgClass;
+  if (btnStyle) phoneClasses += ' ' + btnStyle;
+  const frameTransform = phoneRotate ? `transform:rotate(${phoneRotate}deg);` : '';
+
+  const avatarHtml = deleted.avatar ? '' : (() => {
+    const avatarLayout = layout.avatar || {};
+    const ax = (Number(avatarLayout.x) || 0) - phoneX;
+    const ay = (Number(avatarLayout.y) || 0) - phoneY;
+    const aw = Number(avatarLayout.w) || 82;
+    const ah = Number(avatarLayout.h) || 82;
+    const aRotate = avatarLayout.rotate || 0;
+    if (pageData.avatar) {
+      return `<div data-el="avatar" style="position:absolute;left:${ax}px;top:${ay}px;width:${aw}px;height:${ah}px;transform:rotate(${aRotate}deg)"><img src="${pageData.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" /></div>`;
+    }
+    return `<div data-el="avatar" style="position:absolute;left:${ax}px;top:${ay}px;width:${aw}px;height:${ah}px;transform:rotate(${aRotate}deg);border-radius:50%;background:rgba(255,255,255,0.1)"></div>`;
+  })();
+
+  const nameHtml = deleted.name ? '' : (() => {
+    const nameLayout = layout.name || {};
+    const nx = (Number(nameLayout.x) || 0) - phoneX;
+    const ny = (Number(nameLayout.y) || 0) - phoneY;
+    const nw = Number(nameLayout.w) || 140;
+    const nRotate = nameLayout.rotate || 0;
+    const nameText = pageData.displayNameHtml || escapeHtml(pageData.displayName || '@username');
+    return `<div data-el="name" style="position:absolute;left:${nx}px;top:${ny}px;width:${nw}px;text-align:center;transform:rotate(${nRotate}deg);font-family:'${font}',sans-serif;font-size:${nameSize}px;font-weight:700;color:${accentColor}">${nameText}</div>`;
+  })();
+
+  const bioHtml = deleted.bio ? '' : (() => {
+    const bioLayout = layout.bio || {};
+    const bx = (Number(bioLayout.x) || 0) - phoneX;
+    const by = (Number(bioLayout.y) || 0) - phoneY;
+    const bw = Number(bioLayout.w) || 140;
+    const bRotate = bioLayout.rotate || 0;
+    const bioText = escapeHtml(pageData.bio || '');
+    return `<div data-el="bio" style="position:absolute;left:${bx}px;top:${by}px;width:${bw}px;text-align:center;transform:rotate(${bRotate}deg);font-size:11px;color:rgba(255,255,255,0.6);line-height:1.4">${bioText}</div>`;
+  })();
+
+  let linksHtml = '';
+  if (pageData.linksEnabled && pageData.links && pageData.links.length) {
+    pageData.links.forEach((link, i) => {
+      const key = `link-${i}`;
+      if (deleted[key]) return;
+      const lbox = layout[key];
+      if (!lbox) return;
+      const lx = (Number(lbox.x) || 0) - phoneX;
+      const ly = (Number(lbox.y) || 0) - phoneY;
+      const lw = Number(lbox.w) || 160;
+      const lh = Number(lbox.h) || 36;
+      const lRotate = lbox.rotate || 0;
+      const isIconStyle = link.style === 'icon';
+      const linkColor = link.color || accentColor;
+      if (isIconStyle) {
+        const iconSize = Math.min(lw, lh);
+        linksHtml += `<div data-el="${key}" style="position:absolute;left:${lx}px;top:${ly}px;width:${iconSize}px;height:${iconSize}px;transform:rotate(${lRotate}deg);border-radius:50%;background:${linkColor};display:flex;align-items:center;justify-content:center;font-size:${Math.round(iconSize * 0.45)}px;color:#000;${link.glow ? 'filter:drop-shadow(0 0 6px ' + linkColor + ')' : ''}">${link.emoji || '🔗'}</div>`;
+      } else {
+        linksHtml += `<div data-el="${key}" style="position:absolute;left:${lx}px;top:${ly}px;width:${lw}px;height:${lh}px;transform:rotate(${lRotate}deg);border-radius:8px;background:${linkColor};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#000;${link.glow ? 'box-shadow:0 0 10px ' + linkColor : ''}">${link.label || ''}</div>`;
+      }
+    });
+  }
+
+  let customObjectsHtml = '';
+  (pageData.customObjects || []).forEach((obj) => {
+    const key = `obj-${obj.id}`;
+    const cbox = layout[key];
+    if (!cbox) return;
+    const cx = (Number(cbox.x) || 0) - phoneX;
+    const cy = (Number(cbox.y) || 0) - phoneY;
+    const cw = Number(cbox.w) || 50;
+    const ch = Number(cbox.h) || 50;
+    const cRotate = cbox.rotate || 0;
+    const objAnim = obj.animation ? `animation:${obj.animation} ${(1 / (obj.animationSpeed || 1)).toFixed(1)}s infinite;` : '';
+    if (obj.type === 'text') {
+      const txtContent = obj.html || escapeHtml(obj.text || '');
+      customObjectsHtml += `<div data-el="${key}" style="position:absolute;left:${cx}px;top:${cy}px;width:${cw}px;transform:rotate(${cRotate}deg);font-size:10px;color:#fff;pointer-events:none;${objAnim}">${txtContent}</div>`;
+    } else if (obj.src) {
+      customObjectsHtml += `<div data-el="${key}" style="position:absolute;left:${cx}px;top:${cy}px;width:${cw}px;height:${ch}px;transform:rotate(${cRotate}deg);overflow:hidden;${objAnim}"><img src="${obj.src}" style="width:100%;height:100%;object-fit:cover" /></div>`;
+    }
+  });
+
+  const _bgMap2 = {
+    'bg-black': '#080808',
+    'bg-purple': 'linear-gradient(155deg, #1a0533, #2d0852)',
+    'bg-navy': 'linear-gradient(155deg, #020b18, #0a1628)',
+    'bg-forest': 'linear-gradient(155deg, #030f07, #0d2b14)',
+    'bg-charcoal': 'linear-gradient(155deg, #141414, #1f1f1f)',
+    'bg-rose': 'linear-gradient(155deg, #1a040f, #2b0518)',
+  };
+  const _bgFrame = _bgMap2[bgClass] || '#080808';
   screen.innerHTML = `
-    <div class="preview-content" style="padding:10px;text-align:center">
-      <div style="margin-bottom:6px">${avatarHtml}</div>
-      <div style="font-family:'${pageData.font || 'Syne'}',sans-serif;font-size:${pageData.nameSize || 22}px;font-weight:700;margin-bottom:4px">${nameText}</div>
-      <div style="font-size:11px;color:var(--muted);line-height:1.4">${bioText}</div>
+    <div class="${phoneClasses}" style="position:absolute;left:${phoneX}px;top:${phoneY}px;width:${phoneW}px;height:${phoneH}px;border-radius:${phoneBorderRadius}px;overflow:hidden;${frameTransform}background:${_bgFrame}">
+      <div class="phone-notch"></div>
+      <div class="phone-bg-layer"></div>
+      <div class="phone-inner" style="position:relative;width:100%;height:100%;overflow:hidden">
+        ${avatarHtml}${nameHtml}${bioHtml}${linksHtml}${customObjectsHtml}
+      </div>
     </div>
   `;
 }
@@ -12492,7 +13460,8 @@ function closeTemplateModal() {
   const modal = document.getElementById('templates-modal');
   if (modal) {
     modal.classList.remove('show');
-    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    modal.style.display = '';
   }
 }
 
@@ -12500,7 +13469,7 @@ async function applyTemplate() {
   if (!currentTemplate || !authToken) return;
   
   try {
-    const res = await fetch('/api/apply-template', {
+    const res = await fetch('/api/apply-template?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12546,7 +13515,7 @@ async function createTemplateFromProfile() {
   const pageData = JSON.parse(JSON.stringify(state.page));
   
   try {
-    const res = await fetch('/api/save-template', {
+    const res = await fetch('/api/save-template?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12577,16 +13546,18 @@ async function createTemplateFromProfile() {
 
 function openCreateTemplateModal() {
   const modal = document.getElementById('create-template-modal');
-  const overlay = document.getElementById('create-template-overlay');
-  if (modal) modal.style.display = 'block';
-  if (overlay) overlay.style.display = 'block';
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
 }
 
 function closeCreateTemplateModal() {
   const modal = document.getElementById('create-template-modal');
-  const overlay = document.getElementById('create-template-overlay');
-  if (modal) modal.style.display = 'none';
-  if (overlay) overlay.style.display = 'none';
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = '';
+  }
   document.getElementById('create-template-name').value = '';
   document.getElementById('create-template-tags').value = '';
   document.getElementById('create-template-description').value = '';
