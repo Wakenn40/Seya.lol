@@ -1,0 +1,144 @@
+<!-- PRICING SECTION — paste inside #screen-landing, after the leaderboard div -->
+
+<div id="pricing-section" style="width:100%; max-width:760px; margin-top:32px; margin-bottom:48px;">
+
+  <style>
+    .pricing-eyebrow{display:inline-flex;align-items:center;gap:6px;background:rgba(180,120,255,0.08);border:1px solid rgba(180,120,255,0.18);color:#b87eff;font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:18px;}
+    .pricing-dot-badge{width:5px;height:5px;border-radius:50%;background:#b87eff;box-shadow:0 0 6px #b87eff;display:inline-block;}
+    .pricing-section-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-0.03em;color:#f0f0f0;margin:0 0 6px;}
+    .pricing-section-sub{font-size:14px;color:#555;font-family:'DM Sans',sans-serif;font-weight:300;margin:0 0 32px;}
+    .pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:540px){.pricing-grid{grid-template-columns:1fr;}}
+    .plan-card{background:#0d0d0d;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:28px 24px;position:relative;overflow:hidden;}
+    .plan-card::before{content:'';position:absolute;inset:0;background-image:url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)" opacity="0.03"/%3E%3C/svg%3E');pointer-events:none;z-index:0;}
+    .plan-card--premium{border-color:rgba(180,120,255,0.18);background:#0d0b14;}
+    .plan-card--premium::after{content:'';position:absolute;width:260px;height:260px;background:rgba(140,80,255,0.12);border-radius:50%;top:-80px;right:-60px;filter:blur(70px);pointer-events:none;z-index:0;}
+    .plan-inner{position:relative;z-index:1;}
+    .plan-tier-label{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#444;margin-bottom:16px;}
+    .plan-tier-label--premium{color:#7c5ab8;}
+    .plan-price-row{display:flex;align-items:baseline;gap:4px;margin-bottom:6px;}
+    .plan-price-val{font-family:'Syne',sans-serif;font-size:38px;font-weight:800;letter-spacing:-0.04em;color:#888;}
+    .plan-price-val--premium{color:#e0ccff;}
+    .plan-price-period{font-size:12px;color:#444;font-family:'DM Sans',sans-serif;font-weight:300;}
+    .plan-price-period--premium{color:#7c5ab8;}
+    .plan-desc{font-size:13px;font-family:'DM Sans',sans-serif;font-weight:300;margin:0 0 24px;line-height:1.6;color:#444;}
+    .plan-desc--premium{color:#a380d0;}
+    .plan-features{list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;}
+    .plan-features li{display:flex;align-items:center;gap:10px;font-size:13px;font-family:'DM Sans',sans-serif;color:#888;}
+    .plan-features li.feat-locked{filter:blur(3.5px);user-select:none;pointer-events:none;}
+    .feat-check{width:14px;height:14px;flex-shrink:0;color:#555;}
+    .feat-check--premium{color:#9b5dff;}
+    .plan-cta-btn{width:100%;padding:13px;border-radius:100px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.04em;cursor:pointer;border:none;transition:opacity 0.15s,transform 0.15s;}
+    .plan-cta-btn:hover{opacity:0.85;transform:scale(0.99);}
+    .plan-cta-btn--free{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#888;}
+    .plan-cta-btn--premium{background:linear-gradient(135deg,#7c3aed,#9b5dff);color:#fff;box-shadow:0 0 28px rgba(140,80,255,0.25);}
+    .popular-pill{position:absolute;top:16px;right:16px;background:rgba(155,93,255,0.15);border:1px solid rgba(155,93,255,0.3);color:#b87eff;font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:4px 10px;border-radius:100px;z-index:2;}
+    .plan-lock-hint{text-align:center;font-size:11px;color:#333;font-family:'DM Sans',sans-serif;margin-top:10px;letter-spacing:0.04em;}
+  </style>
+
+  <div class="pricing-eyebrow"><span class="pricing-dot-badge"></span>Pricing</div>
+  <h2 class="pricing-section-title">Simple. One-time.</h2>
+  <p class="pricing-section-sub">No subscriptions. No surprises.</p>
+
+  <div class="pricing-grid">
+
+    <!-- FREE PLAN -->
+    <div class="plan-card">
+      <div class="plan-inner">
+        <div class="plan-tier-label">Free</div>
+        <div class="plan-price-row">
+          <span class="plan-price-val">$0</span>
+          <span class="plan-price-period">/forever</span>
+        </div>
+        <p class="plan-desc">Collect your links in one place. Live in minutes.</p>
+        <ul class="plan-features">
+          <li>
+            <svg class="feat-check" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Basic editor tools
+          </li>
+          <li>
+            <svg class="feat-check" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Basic effects
+          </li>
+          <li>
+            <svg class="feat-check" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Basic analytics
+          </li>
+        </ul>
+        <button class="plan-cta-btn plan-cta-btn--free" id="btn-pricing-free" type="button">Get started</button>
+      </div>
+    </div>
+
+    <!-- PREMIUM PLAN -->
+    <div class="plan-card plan-card--premium">
+      <div class="popular-pill">Popular</div>
+      <div class="plan-inner">
+        <div style="margin-bottom:16px;">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+            <defs>
+              <linearGradient id="gem-body" x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#d4a8ff"/>
+                <stop offset="45%" stop-color="#9b5dff"/>
+                <stop offset="100%" stop-color="#4a1d96"/>
+              </linearGradient>
+              <linearGradient id="gem-shine" x1="10" y1="4" x2="22" y2="16" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#fff" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <!-- outer gem shape -->
+            <polygon points="18,2 30,10 30,14 18,34 6,14 6,10" fill="url(#gem-body)"/>
+            <!-- belt line -->
+            <polygon points="6,10 30,10 30,14 6,14" fill="#fff" fill-opacity="0.12"/>
+            <!-- left dark facet -->
+            <polygon points="6,14 18,34 12,24" fill="#000" fill-opacity="0.18"/>
+            <!-- right mid facet -->
+            <polygon points="30,14 24,24 18,34" fill="#fff" fill-opacity="0.07"/>
+            <!-- top shine -->
+            <polygon points="18,2 30,10 18,10" fill="url(#gem-shine)"/>
+            <!-- top center highlight -->
+            <polygon points="18,4 26,9 18,9" fill="#fff" fill-opacity="0.22"/>
+          </svg>
+        </div>
+        <div class="plan-price-row">
+          <span class="plan-price-val plan-price-val--premium">$3.99</span>
+          <span class="plan-price-period plan-price-period--premium">/once</span>
+        </div>
+        <p class="plan-desc plan-desc--premium">One payment. All features. Yours forever.</p>
+        <ul class="plan-features">
+          <li class="feat-locked">
+            <svg class="feat-check feat-check--premium" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Exclusive badge
+          </li>
+          <li class="feat-locked">
+            <svg class="feat-check feat-check--premium" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Profile layouts
+          </li>
+          <li class="feat-locked">
+            <svg class="feat-check feat-check--premium" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Custom fonts
+          </li>
+          <li class="feat-locked">
+            <svg class="feat-check feat-check--premium" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Typewriter animation
+          </li>
+          <li class="feat-locked">
+            <svg class="feat-check feat-check--premium" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Special profile effects
+          </li>
+          <li class="feat-locked">
+            <svg class="feat-check feat-check--premium" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Advanced customization
+          </li>
+          <li class="feat-locked">
+            <svg class="feat-check feat-check--premium" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            SEO &amp; metadata settings
+          </li>
+        </ul>
+        <button class="plan-cta-btn plan-cta-btn--premium" id="btn-pricing-premium" type="button">Unlock Premium →</button>
+        <p class="plan-lock-hint">Upgrade to reveal all features</p>
+      </div>
+    </div>
+
+  </div>
+</div>

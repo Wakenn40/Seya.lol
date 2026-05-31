@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>seya.lol - Your page. Your style.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/svg+xml" href="seya_icon.svg" />
+</head>
+<body>
+
+<div id="app">
+  <div id="loading-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;display:none;"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <canvas id="shader-bg-canvas" aria-hidden="true"></canvas>
+
+  <section class="screen active" id="screen-landing" aria-label="Home page">
+    <div class="orb orb-1" aria-hidden="true"></div>
+    <div class="orb orb-2" aria-hidden="true"></div>
+    <div class="orb orb-3" aria-hidden="true"></div>
+
+    <div class="landing-inner">
+      <div class="logo-badge" aria-label="seya.lol">
+        <span class="logo-dot" aria-hidden="true"></span>
+        seya.lol
+      </div>
+
+      <h1>seya.lol</h1>
+      <div class="hero-row">
+        <p class="hero-tagline">Your page. <span class="accent-text">Your style.</span></p>
+        <span class="alpha-badge" data-tilt>Alpha-Test</span>
+      </div>
+      <p class="subtitle">One link for all your socials and projects.<br />Customize the look in a minute.</p>
+
+      <div class="cta-group" id="landing-cta-guest">
+        <button class="btn btn-primary" id="btn-signup" type="button">Create page →</button>
+        <button class="btn btn-ghost" id="btn-login" type="button">Log in</button>
+      </div>
+      
+      <div class="cta-group" id="landing-cta-user" style="display:none;">
+        <button class="btn btn-primary" data-action="goto-dashboard" type="button">My Profile →</button>
+        <button class="btn btn-ghost" data-action="logout" type="button">Log out</button>
+      </div>
+
+      <button class="btn btn-ghost" id="btn-toggle-leaderboard" type="button" style="margin-top:16px;">Leaderboard ▾</button>
+    </div>
+
+    <div id="users-pages-section" style="display:none; width:100%; max-width:760px; margin-top:16px; background:#080808; border-radius:20px; border:1px solid rgba(255,255,255,0.07); position:relative; overflow:hidden;">
+      <div style="max-height:600px;overflow-y:auto;padding:28px 24px 32px;">
+      <div style="position:absolute;width:280px;height:280px;background:#d6d6d6;opacity:0.07;border-radius:50%;top:-100px;left:-80px;filter:blur(80px);pointer-events:none;"></div>
+      <div style="position:absolute;width:180px;height:180px;background:#555;opacity:0.10;border-radius:50%;bottom:-20px;right:-20px;filter:blur(80px);pointer-events:none;"></div>
+      <div style="position:absolute;inset:0;pointer-events:none;z-index:0;background-image:url('data:image/svg+xml,%3Csvg%20viewBox=%270%200%20300%20300%27%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter%20id=%27n%27%3E%3CfeTurbulence%20type=%27fractalNoise%27%20baseFrequency=%270.85%27%20numOctaves=%274%27%20stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect%20width=%27100%25%27%20height=%27100%25%27%20filter=%27url(%23n)%27%20opacity=%270.04%27/%3E%3C/svg%3E');"></div>
+      <div style="position:relative;z-index:1;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+          <div style="display:inline-flex;align-items:center;gap:5px;background:rgba(214,214,214,0.10);border:1px solid rgba(255,255,255,0.22);color:#d6d6d6;font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:4px 12px;border-radius:100px;">
+            <span style="width:5px;height:5px;border-radius:50%;background:#d6d6d6;box-shadow:0 0 5px #d6d6d6;display:inline-block;"></span>seya.lol
+          </div>
+          <span style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.03em;color:#f0f0f0;">Leaderboard</span>
+          <div style="margin-left:auto;display:flex;gap:4px;" id="leaderboard-filters">
+            <button class="lb-filter-btn" data-range="24h">24h</button>
+            <button class="lb-filter-btn" data-range="month">1 month</button>
+            <button class="lb-filter-btn" data-range="year">1 year</button>
+            <button class="lb-filter-btn lb-filter-btn--active" data-range="all">All time</button>
+          </div>
+        </div>
+        <div id="vz-list" style="display:flex;flex-direction:column;gap:7px;"></div>
+        <p id="users-empty" style="display:none;text-align:center;color:#555;font-size:14px;padding:24px 0;">No published pages yet — be the first!</p>
+        <p id="users-error" style="display:none;text-align:center;color:#555;font-size:14px;padding:24px 0;">Could not load pages.</p>
+      </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+<script src="app.js"></script>
+<script src="shader-bg.js"></script>
+</body>
+</html>

@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>seya.lol - Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="icon" type="image/svg+xml" href="seya_icon.svg" />
+</head>
+<body>
+
+<div id="app">
+  <div id="loading-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;display:none;"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <section class="screen screen--row active" id="screen-builder" aria-label="Page builder">
+
+    <aside class="builder-sidebar" aria-label="Settings panel">
+      <nav class="sidebar-nav" aria-label="Sections">
+        <div class="tool-switch" aria-label="Tools">
+          <button class="tool-btn active" id="tool-cursor" type="button" aria-label="Cursor tool" title="Cursor">
+            <span aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7.07 17 2.51-7.39L21 11.07 4 4z"/><path d="M13.5 13.5L19 19"/></svg></span>
+          </button>
+          <button class="tool-btn" id="tool-hand" type="button" aria-label="Hand tool" title="Hand (pan/zoom)">
+            <span aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></span>
+          </button>
+          <button class="tool-btn" id="tool-select" type="button" aria-label="Selection tool" title="Selection">
+            <span aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>
+          </button>
+        </div>
+        <button class="section-btn active" data-panel="profile">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/></svg></span> Profile
+        </button>
+        <button class="section-btn" data-panel="music">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span> Music
+        </button>
+        <button class="section-btn" data-panel="links">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span> Links
+        </button>
+        <button class="section-btn" data-panel="background">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></span> Background
+        </button>
+        <button class="section-btn" data-panel="buttons">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="4"/></svg></span> Buttons
+        </button>
+        <button class="section-btn" data-panel="text">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></span> Text
+        </button>
+        <button class="section-btn" data-panel="cursor">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l7.07 17 2.51-7.39L21 11.07 4 4z"/></svg></span> Cursor
+        </button>
+        <button class="section-btn" data-panel="widgets">
+          <span class="section-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></span> Widgets
+        </button>
+      </nav>
+
+      <div class="sidebar-panel active" id="panel-profile">
+        <p class="panel-label">Name and bio</p>
+        <input class="mini-input" type="text" id="edit-display-name" placeholder="Display name" aria-label="Display name" />
+        <textarea class="mini-input mini-textarea" id="edit-bio" placeholder="Short bio..." aria-label="Bio" rows="3"></textarea>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+          <span class="panel-label" style="margin:0;">Layers of page</span>
+          <button class="btn btn-ghost btn--sm" id="bio-layers-toggle" type="button">Off</button>
+        </div>
+        <p class="input-hint" style="margin-top:4px;">Creates 2 extra floors that can be edited as separate pages</p>
+
+        <p class="panel-label" style="margin-top:16px;">Avatar</p>
+        <div class="upload-box-row">
+          <label class="upload-box upload-box--compact" id="avatar-upload-box" for="avatar-file-input">
+            <div class="upload-box-title" id="avatar-upload-title">Upload image or GIF</div>
+            <input class="mini-input" type="file" id="avatar-file-input" accept="image/*" aria-label="Upload avatar image or gif" />
+          </label>
+          <button class="mini-delete-btn" id="delete-avatar-btn" title="Remove avatar" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <p class="input-hint" id="avatar-hint"></p>
+
+        <p class="panel-label" style="margin-top:16px;">Click to enter screen</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <button class="btn btn-ghost btn--sm" id="click-to-enter-toggle" type="button">Off</button>
+        </div>
+        <div id="click-to-enter-controls" style="display:none;">
+          <input class="mini-input" type="text" id="click-to-enter-text" placeholder="Click to enter" aria-label="Click to enter text" />
+        </div>
+
+        <p class="panel-label" style="margin-top:16px;">3D Tilt effect</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <button class="btn btn-ghost btn--sm" id="tilt3d-profile-toggle" type="button">Off</button>
+        </div>
+        <p class="input-hint">Hover over phone to tilt avatar, name, bio & links</p>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
+          <span class="panel-label" style="margin:0;">Fade In</span>
+          <button class="btn btn-ghost btn--sm" id="fade-in-toggle" type="button">Off</button>
+        </div>
+        <p class="input-hint" style="margin-top:4px;">Elements fade in on page load, widgets after a delay</p>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
+          <span class="panel-label" style="margin:0;">Badges</span>
+          <button class="btn btn-ghost btn--sm" id="badges-toggle" type="button">On</button>
+        </div>
+        <div id="badges-settings" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <div class="badges-color-pool">
+            <div class="badge-swatch" data-color="" title="Default" style="background:var(--surface-2);border-color:var(--border-3);color:var(--muted);font-size:16px;line-height:1;">⊙</div>
+            <div class="badge-swatch" data-color="white" title="White" style="background:#fff;"></div>
+            <div class="badge-swatch" data-color="black" title="Black" style="background:#000;border-color:#555;"></div>
+            <div class="badge-swatch" data-color="red" title="Red" style="background:#ff3232;"></div>
+            <div class="badge-swatch" data-color="blue" title="Blue" style="background:#3282ff;"></div>
+            <div class="badge-swatch" data-color="gold" title="Gold" style="background:#ffd700;"></div>
+            <div class="badge-swatch" data-color="green" title="Green" style="background:#32c864;"></div>
+            <div class="badge-swatch" data-color="pink" title="Pink" style="background:#ff50b4;"></div>
+            <div class="badge-swatch" data-color="purple" title="Purple" style="background:#a050ff;"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="btn btn-ghost btn--sm" id="badges-glow-toggle" type="button" style="font-size:11px;padding:4px 10px;">Glow: Off</button>
+            <button class="btn btn-ghost btn--sm" id="badges-color-reset-btn" type="button" style="font-size:11px;padding:4px 10px;">Reset color</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-panel" id="panel-music">
+        <p class="panel-label">Upload music</p>
+        <div class="upload-box-row">
+          <div class="upload-box upload-box--drop" id="music-dropzone" role="button" tabindex="0" aria-label="Upload music">
+            <div class="upload-box-title" id="music-upload-title">+ Add music</div>
+            <div class="upload-box-sub">Drop an audio file here or click to choose</div>
+            <input class="mini-input" type="file" id="music-file-input" accept="audio/*" aria-label="Upload music audio file" hidden />
+          </div>
+          <button class="mini-delete-btn" id="delete-music-btn" title="Remove music" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <p class="input-hint" id="music-hint"></p>
+
+        <div class="music-preview">
+          <div class="music-demo-row" aria-label="Music preview controls">
+            <button class="btn btn-ghost btn--sm" id="music-preview-toggle" type="button">Play</button>
+            <div class="music-volume">
+              <div class="music-volume-top">
+                <span class="music-volume-label">Volume</span>
+                <span class="music-volume-val" id="music-volume-val">100%</span>
+              </div>
+              <input class="music-volume-slider" id="music-volume" type="range" min="0" max="100" value="100" aria-label="Music volume" />
+            </div>
+          </div>
+          <p class="music-demo-status" id="music-demo-status" aria-live="polite"></p>
+        </div>
+
+        <div class="visualizer-section" style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span class="panel-label" style="margin:0;">Music Visualizer</span>
+            <button class="btn btn-ghost btn--sm" id="visualizer-toggle" type="button">Off</button>
+          </div>
+          <div id="visualizer-controls" style="display:none;">
+            <p class="input-hint" style="margin-bottom:8px;">Audio source</p>
+            <div class="visualizer-source-row" style="display:flex;gap:6px;margin-bottom:10px;">
+              <button class="btn btn-ghost btn--sm visualizer-source-btn" data-source="page" type="button">Page music</button>
+              <button class="btn btn-ghost btn--sm visualizer-source-btn" data-source="custom-player" type="button">Custom player</button>
+            </div>
+            <p class="input-hint" style="margin-bottom:8px;">Visualization style</p>
+            <div class="visualizer-style-row" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn--sm visualizer-style-btn" data-style="bars" type="button">Bars</button>
+              <button class="btn btn-ghost btn--sm visualizer-style-btn" data-style="wave" type="button">Wave</button>
+              <button class="btn btn-ghost btn--sm visualizer-style-btn" data-style="circle" type="button">Circle</button>
+              <button class="btn btn-ghost btn--sm visualizer-style-btn" data-style="flame" type="button">Flame</button>
+            </div>
+            <div class="music-volume" style="margin-bottom:8px;">
+              <div class="music-volume-top">
+                <span class="music-volume-label">Color</span>
+                <input class="mini-input" type="color" id="visualizer-color" style="width:40px;height:30px;padding:2px;border-radius:6px;cursor:pointer;" />
+              </div>
+            </div>
+            <div class="music-volume">
+              <div class="music-volume-top">
+                <span class="music-volume-label">Sensitivity</span>
+                <span class="music-volume-val" id="visualizer-sensitivity-val">1.0x</span>
+              </div>
+              <input class="music-volume-slider" id="visualizer-sensitivity" type="range" min="0.1" max="3" step="0.1" value="1" aria-label="Visualizer sensitivity" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-panel" id="panel-links">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span class="panel-label" style="margin:0;">Links</span>
+          <button class="btn btn-ghost btn--sm" id="links-toggle-btn" type="button">Off</button>
+        </div>
+<div id="links-controls" style="display:none;">
+        <p class="panel-label" id="link-panel-label">Add link</p>
+        <input class="mini-input" type="text" id="link-label" placeholder="Title (e.g. Instagram)" aria-label="Link title" />
+        <div style="display:flex;gap:8px;position:relative;">
+          <button class="mini-input" id="link-type-btn" type="button" style="width:80px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;padding:4px;border:1px solid var(--border);background:var(--surface-2);border-radius:8px;color:var(--text);font-size:14px;" data-link-type="url" data-copy-icon="">
+            <span id="link-type-btn-text">🔗</span>
+          </button>
+          <div id="link-type-options" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:20;min-width:160px;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+            <button class="link-type-option" data-type="url" data-copy-icon="" type="button" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:none;background:none;cursor:pointer;border-radius:6px;width:100%;text-align:left;font-size:13px;color:var(--text);">🔗 Link</button>
+            <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+            <button class="link-type-option" data-type="copy" data-copy-icon="btc" type="button" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:none;background:none;cursor:pointer;border-radius:6px;width:100%;text-align:left;font-size:13px;color:var(--text);">₿ BTC (copy)</button>
+            <button class="link-type-option" data-type="copy" data-copy-icon="eth" type="button" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:none;background:none;cursor:pointer;border-radius:6px;width:100%;text-align:left;font-size:13px;color:var(--text);">Ξ ETH (copy)</button>
+            <button class="link-type-option" data-type="copy" data-copy-icon="solana" type="button" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:none;background:none;cursor:pointer;border-radius:6px;width:100%;text-align:left;font-size:13px;color:var(--text);">◎ Solana (copy)</button>
+          </div>
+          <input class="mini-input" type="url" id="link-url" placeholder="https://..." aria-label="Link URL" style="flex:1;" />
+        </div>
+
+        <p class="panel-label" style="margin-top:12px;">Custom icon</p>
+        <div class="upload-box-row">
+          <label class="upload-box upload-box--compact" id="link-icon-upload-box" for="link-icon-file-input">
+            <div class="upload-box-title" id="link-icon-upload-title">Upload PNG/GIF</div>
+            <input class="mini-input" type="file" id="link-icon-file-input" accept="image/png,image/gif" aria-label="Upload link icon" />
+          </label>
+          <button class="mini-delete-btn" id="delete-link-icon-btn" title="Remove icon" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input class="mini-input" type="url" id="link-icon-url" placeholder="Or paste image URL..." aria-label="Link icon URL" style="flex:1;" />
+          <button class="btn btn-ghost btn--sm" id="link-icon-url-btn" type="button" title="Use URL">→</button>
+        </div>
+        <img id="link-icon-preview" src="" alt="Icon preview" style="max-width:32px;max-height:32px;margin-top:8px;display:none;" />
+
+<p class="input-hint" id="link-icon-hint"></p>
+         <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="link-style-btn active" data-link-style="full" title="Full style">Full</button>
+            <button class="link-style-btn" data-link-style="icon" title="Icon only">Icon</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">Icon scale</span>
+            <input type="range" id="link-icon-scale" min="1" max="3" step="0.25" value="1" class="btn-ghost" style="flex:1;" />
+            <span id="link-icon-scale-val" style="font-size:11px;color:var(--text-dim);min-width:28px;text-align:right;">1×</span>
+          </div>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;position:relative;z-index:1;">
+          <input type="color" id="link-color" value="#d6d6d6" style="width:36px;height:36px;border:2px solid #555;border-radius:8px;cursor:pointer;padding:2px;background:#222;" title="Button color" />
+          <button class="btn btn-ghost btn--sm" id="link-glow-btn" type="button" style="flex:1;position:relative;z-index:1;">Glow: Off</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
+          <span class="panel-label" style="margin:0;font-size:11px;">Icon color</span>
+          <div class="badges-color-pool" id="icons-color-pool">
+            <div class="badge-swatch" data-icons-color="" title="Default" style="background:var(--surface-2);border-color:var(--border-3);color:var(--muted);font-size:16px;line-height:1;">⊙</div>
+            <div class="badge-swatch" data-icons-color="white" title="White" style="background:#fff;"></div>
+            <div class="badge-swatch" data-icons-color="black" title="Black" style="background:#000;border-color:#555;"></div>
+            <div class="badge-swatch" data-icons-color="red" title="Red" style="background:#ff3232;"></div>
+            <div class="badge-swatch" data-icons-color="blue" title="Blue" style="background:#3282ff;"></div>
+            <div class="badge-swatch" data-icons-color="gold" title="Gold" style="background:#ffd700;"></div>
+            <div class="badge-swatch" data-icons-color="green" title="Green" style="background:#32c864;"></div>
+            <div class="badge-swatch" data-icons-color="pink" title="Pink" style="background:#ff50b4;"></div>
+            <div class="badge-swatch" data-icons-color="purple" title="Purple" style="background:#a050ff;"></div>
+          </div>
+          <button class="btn btn-ghost btn--sm" id="icons-color-reset-btn" type="button" style="font-size:11px;padding:4px 10px;align-self:flex-start;">Reset color</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-primary" style="flex:1;border-radius:12px;padding:11px;" data-action="add-link">+ Add</button>
+          <button class="btn" id="link-cancel-btn" style="border-radius:12px;padding:11px 16px;display:none;" type="button">Cancel</button>
+        </div>
+
+        <div class="links-list" id="links-list" aria-label="Links list"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-panel" id="panel-background">
+        <p class="panel-label">Background images</p>
+        <div class="upload-box-row">
+          <div class="upload-box upload-box--drop" id="bg-global-dropzone" role="button" tabindex="0" aria-label="Upload global background image">
+            <div class="upload-box-title" id="bg-global-upload-title">+ Page background</div>
+            <div class="upload-box-sub">Drop an image here or click to choose</div>
+            <input class="mini-input" type="file" id="bg-global-file-input" accept="image/*" aria-label="Upload global background image" hidden />
+          </div>
+          <button class="mini-delete-btn" id="delete-global-bg-btn" title="Remove page background" hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <p class="input-hint" id="bg-global-hint"></p>
+
+        <div class="upload-box-row">
+          <div class="upload-box upload-box--drop" id="bg-phone-dropzone" role="button" tabindex="0" aria-label="Upload phone background image">
+            <div class="upload-box-title" id="bg-phone-upload-title">+ Phone background</div>
+            <div class="upload-box-sub">Drop an image here or click to choose</div>
+            <input class="mini-input" type="file" id="bg-phone-file-input" accept="image/*" aria-label="Upload phone background image" hidden />
+          </div>
+          <button class="mini-delete-btn" id="delete-phone-bg-btn" title="Remove phone background" hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <p class="input-hint" id="bg-phone-hint"></p>
+
+        <div class="upload-box-row">
+          <div class="upload-box upload-box--drop" id="phone-frame-dropzone" role="button" tabindex="0" aria-label="Upload phone frame image">
+            <div class="upload-box-title" id="phone-frame-upload-title">+ Change frame</div>
+            <div class="upload-box-sub">Upload PNG or GIF (max 50 MB)</div>
+            <input class="mini-input" type="file" id="phone-frame-file-input" accept="image/png,image/gif,image/jpeg" aria-label="Upload phone frame image" hidden />
+          </div>
+          <button class="mini-delete-btn" id="delete-frame-btn" title="Remove frame" hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <p class="input-hint" id="phone-frame-hint"></p>
+
+        <p class="panel-label">Background color</p>
+        <div class="option-list" id="bg-options">
+          <div class="option-item active" data-bg="bg-black"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#000000" stroke="#333" stroke-width="1"/></svg> Black</div>
+          <div class="option-item" data-bg="bg-purple"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#4a0080" stroke="#6b00a8" stroke-width="1"/></svg> Dark Purple</div>
+          <div class="option-item" data-bg="bg-navy"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#001a40" stroke="#002a55" stroke-width="1"/></svg> Deep Navy</div>
+          <div class="option-item" data-bg="bg-forest"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#003010" stroke="#004018" stroke-width="1"/></svg> Dark Forest</div>
+          <div class="option-item" data-bg="bg-charcoal"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#666666" stroke="#888" stroke-width="1"/></svg> Charcoal</div>
+          <div class="option-item" data-bg="bg-rose"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#3d0010" stroke="#550018" stroke-width="1"/></svg> Dark Rose</div>
+        </div>
+
+        <p class="panel-label" style="margin-top:14px;">Phone background opacity</p>
+        <div class="bg-opacity-row">
+          <input class="bg-opacity-slider" id="bg-opacity-slider" type="range" min="0" max="100" value="100" aria-label="Phone background opacity" />
+          <span class="bg-opacity-value" id="bg-opacity-value">100%</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+          <span class="panel-label" style="margin:0;">Blurry phone</span>
+          <button class="btn btn-ghost btn--sm" id="blurry-phone-btn" type="button">Off</button>
+        </div>
+        <p class="panel-label" style="margin-top:14px;">Blur strength</p>
+        <div class="bg-opacity-row">
+          <input class="bg-opacity-slider" id="blur-strength-slider" type="range" min="1" max="20" value="3" aria-label="Blur strength" />
+          <span class="bg-opacity-value" id="blur-strength-value">3px</span>
+        </div>
+        <p class="panel-label" style="margin-top:14px;">Phone roundness</p>
+        <div class="bg-opacity-row">
+          <input class="bg-opacity-slider" id="phone-radius-slider" type="range" min="0" max="200" value="42" aria-label="Phone border radius" />
+          <span class="bg-opacity-value" id="phone-radius-value">42px</span>
+        </div>
+
+        <p class="panel-label" style="margin-top:14px;">Background effect</p>
+        <div class="option-list" id="bg-effect-options">
+          <div class="option-item active" data-bg-effect="none">None</div>
+          <div class="option-item" data-bg-effect="crt">CRT</div>
+          <div class="option-item" data-bg-effect="halftone">Halftone</div>
+        </div>
+      </div>
+
+      <div class="sidebar-panel" id="panel-buttons">
+        <p class="panel-label">Button shape</p>
+        <div class="option-grid" id="btn-style-options">
+          <div class="option-chip active" data-btn-style="">Default</div>
+          <div class="option-chip" data-btn-style="btn-style-pill">Pill</div>
+          <div class="option-chip" data-btn-style="btn-style-sharp">Sharp</div>
+          <div class="option-chip" data-btn-style="btn-style-outline">Outline</div>
+          <div class="option-chip" data-btn-style="btn-style-glow">Glow</div>
+          <div class="option-chip" data-btn-style="btn-style-glass">Glass</div>
+        </div>
+
+        <p class="panel-label" style="margin-top:20px;">Accent color</p>
+        <div class="color-swatches" id="accent-colors">
+          <div class="color-swatch active" data-accent="#d6d6d6" style="background:#d6d6d6;" title="Light Gray"></div>
+          <div class="color-swatch" data-accent="#bdbdbd" style="background:#bdbdbd;" title="Silver"></div>
+          <div class="color-swatch" data-accent="#a3a3a3" style="background:#a3a3a3;" title="Gray"></div>
+          <div class="color-swatch" data-accent="#8a8a8a" style="background:#8a8a8a;" title="Steel"></div>
+          <div class="color-swatch" data-accent="#6f6f6f" style="background:#6f6f6f;" title="Graphite"></div>
+          <div class="color-swatch" data-accent="#555555" style="background:#555555;" title="Dark Gray"></div>
+          <div class="color-swatch" data-accent="#3d3d3d" style="background:#3d3d3d;" title="Charcoal"></div>
+          <div class="color-swatch" data-accent="#ffffff" style="background:#ffffff; border:1px solid rgba(255,255,255,0.3);" title="White"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-panel" id="panel-text">
+        <p class="panel-label">Heading font</p>
+        <div class="option-list" id="font-options">
+          <div class="option-item active" data-font="Syne" style="font-family:'Syne',sans-serif; font-weight:700;">Syne - Bold</div>
+          <div class="option-item" data-font="DM Sans" style="font-family:'DM Sans',sans-serif;">DM Sans - Clean</div>
+          <div class="option-item" data-font="Georgia" style="font-family:Georgia,serif;">Georgia - Classic</div>
+          <div class="option-item" data-font="monospace" style="font-family:monospace;">Monospace - Coder</div>
+        </div>
+
+        <button class="btn btn-primary" id="add-font-sidebar-btn" style="margin-top:8px;">Add Fonts</button>
+        <input type="file" id="font-file-input" accept=".ttf,.otf,.woff,.woff2" style="display:none;"/>
+        <p class="panel-label" style="margin-top:20px;">Name size</p>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="name-size-slider" min="16" max="32" value="22" step="1" style="flex:1;" aria-label="Name size" />
+          <span id="name-size-val" style="font-size:13px;color:var(--muted);min-width:36px;">22px</span>
+        </div>
+      </div>
+
+      <div class="sidebar-panel" id="panel-cursor">
+        <p class="panel-label">Custom cursor</p>
+        <div class="upload-box-row">
+          <div class="upload-box upload-box--drop" id="cursor-dropzone" role="button" tabindex="0" aria-label="Upload cursor image">
+            <div class="upload-box-title" id="cursor-upload-title">+ Upload cursor</div>
+            <div class="upload-box-sub">PNG or GIF</div>
+            <input class="mini-input" type="file" id="cursor-file-input" accept="image/png,image/gif,image/jpeg" aria-label="Upload cursor image" hidden />
+          </div>
+          <button class="mini-delete-btn" id="delete-cursor-btn" title="Remove cursor" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <p class="input-hint" id="cursor-hint"></p>
+        <div id="cursor-preview" hidden>
+          <p class="panel-label" style="margin-top:12px;">Preview</p>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <img id="cursor-preview-img" src="" alt="Cursor preview" style="max-width:32px;max-height:32px;" />
+            <button class="text-menu-btn text-menu-btn--danger" id="remove-cursor-btn" type="button" style="margin:0;">Remove cursor</button>
+          </div>
+        </div>
+        <hr class="panel-divider" />
+
+        <p class="panel-label">Cursor trail</p>
+        <div class="trail-mode-grid" id="trail-mode-grid">
+          <div class="trail-mode-item active" data-trail="none">None</div>
+          <div class="trail-mode-item" data-trail="stars">Stars</div>
+          <div class="trail-mode-item" data-trail="sparkles">Sparkles</div>
+          <div class="trail-mode-item" data-trail="smoke">Smoke</div>
+          <div class="trail-mode-item" data-trail="bubbles">Bubbles</div>
+          <div class="trail-mode-item" data-trail="neon">Neon</div>
+          <div class="trail-mode-item" data-trail="custom">Custom</div>
+        </div>
+        <div id="trail-upload-wrap" style="display:none;">
+          <div class="upload-box upload-box--drop" id="trail-upload" role="button" tabindex="0" aria-label="Upload trail image">
+            <div class="upload-box-title">+ Upload trail image</div>
+            <div class="upload-box-sub">PNG (recommended 32x32)</div>
+            <input class="mini-input" type="file" id="trail-file-input" accept="image/png,image/gif,image/jpeg" hidden />
+          </div>
+        </div>
+        <div id="trail-preview" style="display:none;margin-top:8px;">
+          <img id="trail-preview-img" src="" alt="" style="max-width:32px;max-height:32px;display:block;" />
+        </div>
+        <div class="trail-config" id="trail-config" style="display:none;margin-top:8px;">
+          <div class="music-volume">
+            <div class="trail-config-row">
+              <span class="music-volume-label">Size</span>
+              <span class="music-volume-val" id="trail-size-val">8</span>
+            </div>
+            <input type="range" id="trail-size" class="music-volume-slider trail-config-slider" min="2" max="32" value="8" />
+          </div>
+          <div class="music-volume">
+            <div class="trail-config-row">
+              <span class="music-volume-label">Lifetime</span>
+              <span class="music-volume-val" id="trail-lifetime-val">500ms</span>
+            </div>
+            <input type="range" id="trail-lifetime" class="music-volume-slider trail-config-slider" min="100" max="1500" step="50" value="500" />
+          </div>
+          <div class="music-volume">
+            <div class="trail-config-row">
+              <span class="music-volume-label">Speed</span>
+              <span class="music-volume-val" id="trail-speed-val">2</span>
+            </div>
+            <input type="range" id="trail-speed" class="music-volume-slider trail-config-slider" min="1" max="10" value="2" />
+          </div>
+          <div class="music-volume">
+            <div class="trail-config-row">
+              <span class="music-volume-label">Opacity</span>
+              <span class="music-volume-val" id="trail-opacity-val">80%</span>
+            </div>
+            <input type="range" id="trail-opacity" class="music-volume-slider trail-config-slider" min="0" max="100" value="80" />
+          </div>
+          <div class="music-volume">
+            <div class="trail-config-row">
+              <span class="music-volume-label">Count</span>
+              <span class="music-volume-val" id="trail-count-val">1</span>
+            </div>
+            <input type="range" id="trail-count" class="music-volume-slider trail-config-slider" min="1" max="10" value="1" />
+          </div>
+        </div>
+        <p class="input-hint" id="trail-hint"></p>
+      </div>
+
+      <div class="sidebar-panel" id="panel-widgets">
+        <p class="panel-label">Widgets</p>
+        <div style="margin-bottom:12px;">
+          <p class="panel-label" style="font-size:13px;color:#888;margin-bottom:8px;">Discord Widget</p>
+          <button class="btn btn-ghost btn--sm" id="discord-widget-toggle" type="button">Off</button>
+          <p class="input-hint">Show Discord status on your profile page</p>
+          <div style="margin-top:8px;">
+            <label class="panel-label" style="font-size:13px;color:#888;margin-bottom:4px;">Size</label>
+            <input type="range" id="discord-widget-scale" min="0.5" max="2" step="0.05" value="1" class="btn-ghost" style="width:100%;" />
+          </div>
+          <div style="margin-top:8px;">
+            <label class="panel-label" style="font-size:13px;color:#888;margin-bottom:4px;">Opacity</label>
+            <input type="range" id="discord-widget-opacity" min="0" max="1" step="0.05" value="1" class="btn-ghost" style="width:100%;" />
+          </div>
+          <div style="margin-top:8px;">
+            <label class="panel-label" style="font-size:13px;color:#888;margin-bottom:4px;">Background</label>
+            <input type="color" id="discord-widget-bgcolor" value="#1a1a1a" class="btn-ghost" style="width:100%;height:32px;padding:2px;border:1px solid #333;border-radius:4px;background:none;cursor:pointer;" />
+          </div>
+          <div style="margin-top:8px;">
+            <button class="btn btn-ghost btn--sm" id="discord-widget-tilt-toggle" type="button">3D Tilt: OFF</button>
+            <p class="input-hint">Tilts with phone on hover (3D Tilt must be enabled)</p>
+          </div>
+        <div style="margin-top:12px;">
+          <p class="panel-label" style="font-size:13px;color:#888;margin-bottom:8px;">Spotify Player</p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="spotify-widget-url" class="btn-ghost" placeholder="Paste Spotify URL or iframe code" style="flex:1;padding:6px;font-size:12px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:4px;outline:none;">
+            <button class="btn btn-ghost btn--sm" id="spotify-widget-add" type="button">Add</button>
+          </div>
+          <div id="spotify-widget-actions" style="display:flex;gap:8px;margin-bottom:8px;"></div>
+          <div style="margin-top:8px;">
+            <label class="panel-label" style="font-size:13px;color:#888;margin-bottom:4px;">Size</label>
+            <input type="range" id="spotify-widget-scale" min="0.5" max="2" step="0.05" value="1" class="btn-ghost" style="width:100%;" />
+          </div>
+          <div style="margin-top:8px;">
+            <button class="btn btn-ghost btn--sm" id="spotify-widget-tilt-toggle" type="button">3D Tilt: OFF</button>
+            <p class="input-hint">Tilts with phone on hover (3D Tilt must be enabled)</p>
+          </div>
+<p class="input-hint">Shows Spotify player on your profile page</p>
+         </div>
+         <div style="margin-top:12px;">
+           <p class="panel-label" style="font-size:13px;color:#888;margin-bottom:8px;">Custom Player</p>
+           <button class="btn btn-ghost btn--sm" id="custom-player-toggle" type="button">Off</button>
+           <p class="input-hint">Show a custom audio player on your profile page</p>
+           <div id="custom-player-controls" style="display:none;margin-top:8px;">
+             <div class="upload-box-row" style="margin-bottom:8px;">
+               <div class="upload-box upload-box--drop" id="custom-player-cover-dropzone" role="button" tabindex="0" aria-label="Upload cover art" style="flex:1;">
+                 <div class="upload-box-title" id="custom-player-cover-title">+ Cover</div>
+                 <input class="mini-input" type="file" id="custom-player-cover-input" accept="image/*" aria-label="Upload cover art" hidden />
+               </div>
+               <button class="mini-delete-btn" id="delete-player-cover-btn" title="Remove cover" style="display:none;">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+               </button>
+             </div>
+             <input class="mini-input" type="text" id="custom-player-title" placeholder="Song title" aria-label="Song title" style="margin-bottom:8px;" />
+             <div class="upload-box-row" style="margin-bottom:8px;">
+               <div class="upload-box upload-box--drop" id="custom-player-music-dropzone" role="button" tabindex="0" aria-label="Upload music" style="flex:1;">
+                 <div class="upload-box-title" id="custom-player-music-title">+ Upload music</div>
+                 <input class="mini-input" type="file" id="custom-player-music-input" accept="audio/*" aria-label="Upload music" hidden />
+               </div>
+               <button class="mini-delete-btn" id="delete-player-music-btn" title="Remove music" style="display:none;">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+               </button>
+             </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                <label class="panel-label" style="font-size:13px;color:#888;">Background:</label>
+                <input type="color" id="custom-player-bgcolor" value="#1a1a1a" style="width:32px;height:32px;border:1px solid #555;border-radius:4px;cursor:pointer;padding:2px;background:#222;" />
+              </div>
+              <div class="upload-box-row" style="margin-bottom:8px;">
+                <div class="upload-box upload-box--drop" id="custom-player-bgimage-dropzone" role="button" tabindex="0" aria-label="Upload background image" style="flex:1;">
+                  <div class="upload-box-title" id="custom-player-bgimage-title">+ BG Image</div>
+                  <input class="mini-input" type="file" id="custom-player-bgimage-input" accept="image/png,image/gif,image/jpeg" aria-label="Upload background image" hidden />
+                </div>
+                <button class="mini-delete-btn" id="delete-player-bgimage-btn" title="Remove background image" style="display:none;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                <label class="panel-label" style="font-size:13px;color:#888;">Opacity:</label>
+                <input type="range" id="custom-player-bgopacity" min="0" max="100" value="100" class="btn-ghost" style="flex:1;" />
+                <span id="custom-player-bgopacity-val" style="font-size:12px;color:#aaa;min-width:28px;">100%</span>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <label class="panel-label" style="font-size:13px;color:#888;">Size:</label>
+                <input type="range" id="custom-player-scale" min="0.5" max="2" step="0.05" value="1" class="btn-ghost" style="flex:1;" />
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                  <label class="panel-label" style="font-size:13px;color:#888;">Volume:</label>
+                  <input type="range" id="custom-player-volume" min="0" max="100" value="100" class="btn-ghost" style="flex:1;" />
+                  <span id="custom-player-volume-val" style="font-size:12px;color:#aaa;min-width:28px;">100%</span>
+                </div>
+                <button class="btn btn-ghost btn--sm" id="custom-player-mute" type="button">Mute</button>
+              </div>
+              <div style="margin-top:8px;">
+                <button class="btn btn-ghost btn--sm" id="custom-player-tilt-toggle" type="button">3D Tilt: OFF</button>
+                <p class="input-hint">Tilts with phone on hover (3D Tilt must be enabled)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost btn--full" data-action="save-page" style="margin-bottom:8px;">Save</button>
+        <button class="btn btn-primary btn--full" data-action="publish-page" style="margin-bottom:8px;">Publish page</button>
+        <button class="btn btn-ghost btn--full" data-action="goto-dashboard" style="border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;">← Dashboard</button>
+      </div>
+    </aside>
+
+    <div class="builder-preview" aria-label="Preview">
+      <div class="preview-label" aria-hidden="true">PREVIEW</div>
+
+      <div class="layers-menu" id="layers-menu">
+        <div class="layers-menu-header">
+          <span>Layers</span>
+          <button class="btn btn-ghost btn--sm" id="add-layer-btn" type="button" title="Add layer">+</button>
+        </div>
+        <div class="layers-menu-list" id="layers-list"></div>
+      </div>
+
+      <div class="floor-switcher" id="floor-switcher" style="display:none;"></div>
+
+      <div class="preview-wrap">
+        <div class="preview-stage" id="preview-stage" aria-label="Preview stage">
+          <div class="preview-stage-inner" id="preview-stage-inner">
+<div class="phone-frame editable" id="preview-frame" data-editable="phone">
+              <span class="resize-handle" aria-hidden="true"></span>
+              <div class="phone-notch" aria-hidden="true"></div>
+              <div class="phone-inner">
+                <div class="phone-bg-layer" aria-hidden="true"></div>
+              </div>
+              <img class="phone-frame-overlay" id="preview-frame-overlay" alt="" aria-hidden="true" hidden />
+            </div>
+            <div class="page-avatar editable" id="prev-avatar" data-editable="avatar" aria-label="Avatar"><img src="default_pfp.png" alt="Avatar" class="page-avatar-image" /><span class="resize-handle" aria-hidden="true"></span></div>
+            <div class="page-name editable" id="prev-name" data-editable="name" aria-label="Name">@username<span class="resize-handle" aria-hidden="true"></span></div>
+            <div class="page-bio editable" id="prev-bio" data-editable="bio" aria-label="Bio"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:inline-block;vertical-align:middle;"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg> Hey, this is my page <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:inline-block;vertical-align:middle;"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg><span class="resize-handle" aria-hidden="true"></span></div>
+<div class="spotify-widget-container editable" id="preview-spotify-widget-container" data-editable="spotify-widget" style="display:none;">
+  <iframe id="preview-spotify-player" src="" style="width:100%;height:100%;border:none;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+</div>
+<div class="discord-widget-container editable" id="preview-discord-widget-container" data-editable="discord-widget" style="display:none;"></div>
+<div class="custom-player-widget-container editable" id="preview-custom-player-widget-container" data-editable="custom-player-widget" style="display:none;"></div>
+<div class="visualizer-widget-container editable" id="preview-visualizer-widget-container" data-editable="visualizer-widget" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <svg style="display:none;position:absolute;width:0;height:0;" aria-hidden="true">
+      <defs>
+        <filter id="halftone-filter" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+          <feTurbulence id="halftone-turbulence" type="turbulence" baseFrequency="0.05" numOctaves="1" result="noise"/>
+          <feColorMatrix type="saturate" values="0" in="noise" result="gray"/>
+          <feComposite in="SourceGraphic" in2="gray" operator="in" result="maskedGray"/>
+          <feBlend in="SourceGraphic" in2="maskedGray" mode="multiply" result="blended"/>
+        </filter>
+      </defs>
+    </svg>
+  </section>
+
+</div>
+
+<div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+<div class="text-menu" id="text-menu" role="menu" aria-hidden="true">
+  <button class="text-menu-btn" id="edit-text-btn" type="button">Edit</button>
+  <div class="text-menu-row">
+    <select id="text-font-select" class="text-menu-select">
+      <option value="">Font</option>
+      <option value="Syne, sans-serif">Syne</option>
+      <option value="'DM Sans', sans-serif">DM Sans</option>
+      <option value="Georgia, serif">Georgia</option>
+      <option value="monospace">Monospace</option>
+    </select>
+    <label class="text-menu-btn" id="add-font-btn" for="font-file-input">Add Fonts</label>
+    <div class="text-size-slider-row">
+      <input id="text-size-slider" class="text-size-slider" type="range" min="8" max="72" value="16" />
+      <span id="text-size-value" class="text-size-value">16px</span>
+    </div>
+  </div>
+  <div class="text-menu-row">
+    <button class="text-menu-btn" id="text-color-btn" type="button">Color</button>
+    <input type="color" id="text-color-input" class="text-color-input" value="#ffffff" />
+  </div>
+  <button class="text-menu-btn" id="text-effects-btn" type="button">Effects</button>
+  <div class="text-effects-grid" id="text-effects-grid" hidden>
+    <div class="text-effect-item" data-effect="glow-cyan" style="text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff; color: #fff;">Glow Cyan</div>
+    <div class="text-effect-item" data-effect="glow-pink" style="text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff; color: #fff;">Glow Pink</div>
+    <div class="text-effect-item" data-effect="glow-gold" style="text-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700; color: #fff;">Glow Gold</div>
+    <div class="text-effect-item" data-effect="neon-green" style="text-shadow: 0 0 5px #00ff00, 0 0 15px #00ff00, 0 0 30px #00ff00; color: #00ff00;">Neon Green</div>
+    <div class="text-effect-item" data-effect="fire" style="text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 20px #ff0000; color: #ff6600;">Fire</div>
+    <div class="text-effect-item" data-effect="ice" style="text-shadow: 0 0 5px #87ceeb, 0 0 15px #add8e6; color: #e0ffff;">Ice</div>
+    <div class="text-effect-item" data-effect="rainbow" style="background: linear-gradient(90deg, red, orange, yellow, green, blue, purple); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Rainbow</div>
+    <div class="text-effect-item" data-effect="mirror" style="text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff; color: #fff;">Mirror</div>
+    <div class="text-effect-item" data-effect="outline" style="color: #fff; -webkit-text-stroke: 1px #fff;">Outline</div>
+    <div class="text-effect-item" data-effect="shadow-dark" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.8); color: #ccc;">Shadow Dark</div>
+    <div class="text-effect-item" data-effect="typewriter" style="border-right: 2px solid var(--color-text-primary);">Typewriter</div>
+    <div class="text-effect-item" data-effect="particles" style="color: #a8c7fa; text-shadow: 0 0 6px #a8c7fa88;">Particles</div>
+  </div>
+  <button class="text-menu-btn" id="text-object-fx-btn" type="button">Object FX</button>
+  <div class="text-object-effects-grid" id="text-object-effects-grid" hidden>
+    <div class="text-effect-item" data-object-fx="crt">CRT</div>
+    <div class="text-effect-item" data-object-fx="halftone">Halftone</div>
+    <div class="text-effect-item" data-object-fx="glitch">Glitch</div>
+  </div>
+  <button class="text-menu-btn" id="apply-text-style-btn" type="button">Apply</button>
+  <button class="text-menu-btn text-menu-btn--danger" id="remove-text-effect-btn" type="button" style="margin-top:4px;">Remove Effect</button>
+  <button class="text-menu-btn text-menu-btn--danger" id="remove-text-object-fx-btn" type="button" style="margin-top:4px;">Remove Object FX</button>
+  <button class="text-menu-btn text-menu-btn--danger" id="delete-text-btn" type="button">Delete</button>
+</div>
+
+<div class="text-menu" id="object-menu" role="menu" aria-hidden="true">
+  <button class="text-menu-btn" id="object-animation-btn" type="button">Animation</button>
+  <div class="text-effects-grid" id="object-animation-grid" hidden>
+    <div class="text-effect-item anim-preview" data-animation="shake-light"><div class="anim-demo" style="animation: shake-light 0.3s infinite;"></div>Shake</div>
+    <div class="text-effect-item anim-preview" data-animation="shake-medium"><div class="anim-demo" style="animation: shake-medium 0.5s infinite;"></div>Shake Med</div>
+    <div class="text-effect-item anim-preview" data-animation="shake-strong"><div class="anim-demo" style="animation: shake-strong 0.8s infinite;"></div>Shake Str</div>
+    <div class="text-effect-item anim-preview" data-animation="bounce"><div class="anim-demo" style="animation: bounce 1s infinite;"></div>Bounce</div>
+    <div class="text-effect-item anim-preview" data-animation="pulse"><div class="anim-demo" style="animation: pulse 1.5s infinite;"></div>Pulse</div>
+    <div class="text-effect-item anim-preview" data-animation="spin"><div class="anim-demo" style="animation: spin 2s linear infinite;"></div>Spin</div>
+    <div class="text-effect-item anim-preview" data-animation="float"><div class="anim-demo" style="animation: float 3s ease-in-out infinite;"></div>Float</div>
+    <div class="text-effect-item anim-preview" data-animation="wiggle"><div class="anim-demo" style="animation: wiggle 1s ease-in-out infinite;"></div>Wiggle</div>
+  </div>
+  <div class="object-animation-speed" id="object-animation-speed" style="display:none;margin-bottom:8px;">
+    <label style="color:#aaa;font-size:11px;">Speed</label>
+    <input type="range" id="object-animation-speed-input" min="0.1" max="3" step="0.1" value="1" style="width:100%;margin-top:4px;">
+  </div>
+  <button class="text-menu-btn text-menu-btn--danger" id="remove-animation-btn" type="button" style="margin-top:4px;">Remove</button>
+  <button class="text-menu-btn" id="object-effects-btn" type="button">Effects</button>
+  <div class="text-effects-grid" id="object-effects-grid" hidden>
+    <div class="text-effect-item" data-effect="halftone">Halftone</div>
+    <div class="text-effect-item" data-effect="crt">CRT</div>
+  </div>
+  <div class="object-effect-controls" id="object-halftone-controls" style="display:none;margin-bottom:8px;">
+    <label style="color:#aaa;font-size:11px;">Pixel Size</label>
+    <input type="range" id="object-halftone-size-input" min="2" max="20" step="1" value="6" style="width:100%;margin-top:4px;">
+    <span id="object-halftone-size-val" style="color:#888;font-size:11px;display:block;text-align:center;margin-top:2px;">6</span>
+  </div>
+  <div class="object-effect-controls" id="object-crt-controls" style="display:none;margin-bottom:8px;">
+    <label style="color:#aaa;font-size:11px;">Scanline</label>
+    <input type="range" id="object-crt-scanline-input" min="0" max="100" step="1" value="60" style="width:100%;margin-top:4px;">
+    <span id="object-crt-scanline-val" style="color:#888;font-size:11px;display:block;text-align:center;margin-top:2px;">60</span>
+    <label style="color:#aaa;font-size:11px;margin-top:6px;display:block;">Distortion</label>
+    <input type="range" id="object-crt-distortion-input" min="0" max="100" step="1" value="50" style="width:100%;margin-top:4px;">
+    <span id="object-crt-distortion-val" style="color:#888;font-size:11px;display:block;text-align:center;margin-top:2px;">50</span>
+  </div>
+  <button class="text-menu-btn text-menu-btn--danger" id="remove-effect-btn" type="button" style="margin-top:4px;">Remove Effect</button>
+  <button class="text-menu-btn" id="follow-cursor-btn" type="button">Follow Cursor: OFF</button>
+  <button class="text-menu-btn" id="tilt3d-object-btn" type="button">3D Tilt: OFF</button>
+  <button class="text-menu-btn text-menu-btn--danger" id="delete-object-btn" type="button" style="margin-top:4px;">Delete</button>
+</div>
+
+<div class="bg-opacity-menu" id="link-context-menu" role="menu" aria-hidden="true">
+  <div class="bg-opacity-menu-title">Link</div>
+  <button class="text-menu-btn" id="link-url-item" type="button">Change URL</button>
+  <button class="text-menu-btn" id="link-label-item" type="button">Change Label</button>
+  <button class="text-menu-btn" id="link-style-item" type="button">Change Style</button>
+  <button class="text-menu-btn text-menu-btn--danger" id="link-delete-item" type="button" style="margin-top:6px;">Delete Link</button>
+</div>
+
+<div class="bg-opacity-menu" id="phone-context-menu" role="dialog" aria-hidden="true">
+  <div class="bg-opacity-menu-title">Phone</div>
+  <button class="text-menu-btn" id="change-frame-btn" type="button" style="margin-top:2px;">Change frame</button>
+  <button class="text-menu-btn" id="add-object-bg-btn" type="button" style="margin-top:2px;">Add object</button>
+  <button class="text-menu-btn text-menu-btn--danger" id="delete-bg-btn" type="button" style="margin-top:4px;">Delete background</button>
+</div>
+
+<div class="bg-opacity-menu" id="add-object-menu" role="dialog" aria-hidden="true">
+  <div class="bg-opacity-menu-title">Add to Stage</div>
+  <button class="text-menu-btn" id="add-object-stage-btn" type="button">Add Image (File)</button>
+  <button class="text-menu-btn" id="add-object-url-btn" type="button">Add Image (URL)</button>
+  <div id="add-url-input-wrapper" style="margin:4px 0; display:none;">
+    <input type="url" id="add-url-input" placeholder="Paste image URL..." style="width:100%; padding:8px 10px; background:#141414; border:1px solid #444; border-radius:6px; color:#fff; font-size:13px; outline:none; box-sizing:border-box;" />
+  </div>
+  <button class="text-menu-btn" id="add-text-stage-btn" type="button">Add Text</button>
+</div>
+
+<input type="file" id="object-file-input" accept="image/png,image/jpeg,image/jpg,image/gif" style="display:none;" />
+
+<div id="prompt-modal" role="dialog" aria-hidden="true" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; align-items:center; justify-content:center; z-index:99999; background:rgba(0,0,0,0.85);">
+  <div style="background:#1a1a1a; border:1px solid #333; border-radius:16px; padding:28px; width:380px; max-width:90vw; box-shadow:0 25px 80px rgba(0,0,0,0.9);">
+    <div id="prompt-modal-title" style="font-size:18px; font-weight:700; color:#fff; margin-bottom:20px;">Enter text</div>
+    <input type="text" id="prompt-modal-input" style="width:100%; padding:14px 16px; background:#141414; border:1px solid #333; border-radius:10px; color:#fff; font-size:15px; outline:none; box-sizing:border-box;" />
+    <div id="prompt-modal-hint" style="font-size:12px; color:#888; margin-top:10px;"></div>
+    <div style="display:flex; gap:10px; margin-top:24px;">
+      <button id="prompt-modal-cancel" style="flex:1; padding:12px 16px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; border:none; background:#252525; color:#888;">Cancel</button>
+      <button id="prompt-modal-confirm" class="glossy-btn" style="flex:1; padding:12px 16px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; border:none; background:linear-gradient(135deg, #888 0%, #eee 50%, #888 100%); color:#111; position:relative; overflow:hidden;">OK</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.glossy-btn {
+  background: linear-gradient(135deg, #666 0%, #ddd 50%, #999 100%);
+  transition: background 0.1s;
+}
+.glossy-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.4) 0%, transparent 60%);
+  pointer-events: none;
+}
+</style>
+
+<script src="app.js"></script>
+</body>
+</html>
