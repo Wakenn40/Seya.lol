@@ -17,7 +17,7 @@ class CryptoPay {
             'asset' => $asset,
             'amount' => $amount,
             'description' => $extra['description'] ?? 'Lifetime Premium Subscription',
-            'paid_btn_name' => 'openLink',
+            'paid_btn_name' => 'viewItem',
             'paid_btn_url' => $extra['return_url'] ?? '',
             'allow_anonymous' => false,
             'allow_comments' => false,
