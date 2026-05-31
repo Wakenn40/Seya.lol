@@ -1,4 +1,26 @@
 <?php
+
+// API routing via index.php (nginx fallback — all unknown routes go here)
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+if (preg_match('#^/api/([a-z-]+)(?:\?(.*))?$#', $requestUri, $m)) {
+    $action = $m[1];
+    if (!empty($m[2])) {
+        parse_str($m[2], $qp);
+        $_GET = array_merge($_GET, $qp);
+        $_REQUEST = array_merge($_REQUEST, $qp);
+    }
+    require_once __DIR__ . '/config.php';
+    $apiFile = __DIR__ . '/api/' . $action . '.php';
+    if (file_exists($apiFile)) {
+        require $apiFile;
+    } else {
+        http_response_code(404);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'API endpoint not found: ' . $action]);
+    }
+    exit;
+}
+
 $path = $_GET['username'] ?? '';
 $authParam = $_GET['auth'] ?? '';
 

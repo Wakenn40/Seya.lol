@@ -1085,7 +1085,7 @@ async function loadPublicPage(username) {
   console.log('Loading page for:', userToLoad);
   
   try {
-    const res = await fetch('/api.php?action=public-page&user=' + encodeURIComponent(userToLoad));
+    const res = await fetch('/api/public-page?user=' + encodeURIComponent(userToLoad));
     const data = await res.json();
     console.log('API response:', data);
     
@@ -1356,7 +1356,7 @@ async function handleAuthSubmit() {
     }
 
     try {
-      const res = await fetch('/api.php?action=register', {
+      const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: val, password })
@@ -1430,7 +1430,7 @@ async function handleAuthSubmit() {
     }
 
     try {
-      const res = await fetch('/api.php?action=login', {
+      const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: val, password })
@@ -1599,7 +1599,7 @@ function checkCp2FAStatus() {
   hint.textContent = 'Checking...';
   hint.style.color = 'var(--muted)';
 
-  fetch('/api.php?action=get-email-status&token=' + encodeURIComponent(authToken), {
+  fetch('/api/get-email-status?token=' + encodeURIComponent(authToken), {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${authToken}` }
   })
@@ -1638,7 +1638,7 @@ async function handleCp2FAVerify() {
   btn.textContent = 'Verifying...';
 
   try {
-    const res = await fetch('/api.php?action=verify-totp-for-action&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/verify-totp-for-action?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1694,7 +1694,7 @@ async function handleCpStep1() {
   }
 
   try {
-    const res = await fetch('/api.php?action=change-password&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/change-password?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify({ action: 'verify', currentPassword: current })
@@ -1738,7 +1738,7 @@ async function handleCpStep2() {
   }
 
   try {
-    const res = await fetch('/api.php?action=change-password&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/change-password?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify({ action: 'update', newPassword: newPw })
@@ -1773,7 +1773,7 @@ async function checkSession() {
   console.log('checkSession: sending request with token:', authToken.substring(0, 10) + '...');
   
   try {
-    const res = await fetch('/api.php?action=check-session&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/check-session?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -1857,7 +1857,7 @@ async function checkSession() {
 }
 
 function logout() {
-  fetch('/api.php?action=logout', {
+  fetch('/api/logout', {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
@@ -1929,7 +1929,7 @@ async function getStorageInfo() {
   if (!authToken) return null;
   
   try {
-    const res = await fetch('/api.php?action=storage-info', {
+    const res = await fetch('/api/storage-info', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -1947,7 +1947,7 @@ async function checkCanUpload(dataSize) {
   if (!authToken) return { allowed: false, error: 'Not logged in' };
   
   try {
-    const res = await fetch('/api.php?action=check-upload', {
+    const res = await fetch('/api/check-upload', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -2022,7 +2022,7 @@ async function savePageToServer(publish = false) {
   });
   
   try {
-    const res = await fetch('/api.php?action=save-page&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/save-page?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -2169,7 +2169,7 @@ function setupDiscord() {
   if (unlinkBtn) {
     unlinkBtn.addEventListener('click', async () => {
       try {
-        const res = await fetch('/api.php?action=discord-unlink&token=' + encodeURIComponent(authToken), {
+        const res = await fetch('/api/discord-unlink.php?token=' + encodeURIComponent(authToken), {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + authToken }
         });
@@ -7876,7 +7876,7 @@ function setupPreviewEditor() {
             let imageSrc = obj.originalSrc;
             if (obj.originalSrc.startsWith('http')) {
               try {
-                const res = await fetch('/api.php?action=proxy-image&url=' + encodeURIComponent(obj.originalSrc));
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
                 if (res.ok) {
                   const data = await res.json();
                   if (data.dataUrl) {
@@ -7939,7 +7939,7 @@ function setupPreviewEditor() {
             let imageSrc = obj.originalSrc;
             if (obj.originalSrc.startsWith('http')) {
               try {
-                const res = await fetch('/api.php?action=proxy-image&url=' + encodeURIComponent(obj.originalSrc));
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
                 if (res.ok) {
                   const data = await res.json();
                   if (data.dataUrl) {
@@ -7998,7 +7998,7 @@ function setupPreviewEditor() {
             let imageSrc = obj.originalSrc;
             if (obj.originalSrc.startsWith('http')) {
               try {
-                const res = await fetch('/api.php?action=proxy-image&url=' + encodeURIComponent(obj.originalSrc));
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
                 if (res.ok) {
                   const data = await res.json();
                   if (data.dataUrl) {
@@ -8046,7 +8046,7 @@ function setupPreviewEditor() {
             let imageSrc = obj.originalSrc;
             if (obj.originalSrc.startsWith('http')) {
               try {
-                const res = await fetch('/api.php?action=proxy-image&url=' + encodeURIComponent(obj.originalSrc));
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
                 if (res.ok) {
                   const data = await res.json();
                   if (data.dataUrl) {
@@ -8092,7 +8092,7 @@ function setupPreviewEditor() {
             let imageSrc = obj.originalSrc;
             if (obj.originalSrc.startsWith('http')) {
               try {
-                const res = await fetch('/api.php?action=proxy-image&url=' + encodeURIComponent(obj.originalSrc));
+                const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(obj.originalSrc));
                 if (res.ok) {
                   const data = await res.json();
                   if (data.dataUrl) {
@@ -8907,7 +8907,7 @@ async function reapplyHalftoneEffects() {
       let imageSrc = obj.src;
       if (imageSrc.startsWith('http')) {
         try {
-          const res = await fetch('/api.php?action=proxy-image&url=' + encodeURIComponent(imageSrc));
+          const res = await fetch('/api/proxy-image?url=' + encodeURIComponent(imageSrc));
           if (res.ok) {
             const data = await res.json();
             if (data.dataUrl) imageSrc = data.dataUrl;
@@ -8969,7 +8969,7 @@ function renderPublicCustomObjects() {
       
       const loadImageWithProxy = (src) => {
         if (src && src.startsWith('http')) {
-          fetch('/api.php?action=proxy-image&url=' + encodeURIComponent(src))
+          fetch('/api/proxy-image?url=' + encodeURIComponent(src))
             .then(res => res.json())
             .then(data => {
               if (data.dataUrl) {
@@ -9469,7 +9469,7 @@ function renderBadges(container) {
   if (!hasContent) panel.style.display = 'none';
   container.appendChild(panel);
   if (owner) {
-    fetch('/api.php?action=user-rank&user=' + encodeURIComponent(owner))
+    fetch('/api/user-rank.php?user=' + encodeURIComponent(owner))
       .then(r => r.json())
       .then(data => {
         if (data.rank && data.rank <= 50) {
@@ -11750,7 +11750,7 @@ async function loadUsersPages(range = 'all') {
   if (!list) return;
   
   try {
-    const res = await fetch('/api.php?action=list-users&range=' + range);
+    const res = await fetch('/api/list-users?range=' + range);
     const data = await res.json();
     
     if (data.users && data.users.length > 0) {
@@ -11955,7 +11955,7 @@ let aliasData = null;
 async function loadAliases() {
   if (!authToken) return;
   try {
-    const res = await fetch('/api.php?action=get-aliases&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/get-aliases?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12078,7 +12078,7 @@ function setupIdsInput() {
 
 async function checkAliasAvailability(alias, hintEl) {
   try {
-    const res = await fetch(`/api.php?action=check-alias&alias=${encodeURIComponent(alias)}`);
+    const res = await fetch(`/api/check-alias?alias=${encodeURIComponent(alias)}`);
     const data = await res.json();
     if (data.available) {
       hintEl.textContent = 'Available!';
@@ -12116,7 +12116,7 @@ async function addAlias() {
   addBtn.textContent = 'Adding...';
 
   try {
-    const res = await fetch('/api.php?action=add-alias&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/add-alias?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12170,12 +12170,10 @@ function setupIdsDeleteModal() {
   const acceptBtn = document.getElementById('confirm-accept-btn');
   const acceptInput = document.getElementById('confirm-accept-input');
   if (!cancelBtn || !yesBtn || !acceptCancelBtn || !acceptBtn || !acceptInput) return;
-
   cancelBtn.addEventListener('click', closeConfirmModal);
   yesBtn.addEventListener('click', showDeleteStep2);
   acceptCancelBtn.addEventListener('click', closeConfirmModal);
   acceptBtn.addEventListener('click', confirmDeleteAlias);
-
   acceptInput.addEventListener('input', () => {
     const val = acceptInput.value.trim();
     const okBtn = document.getElementById('confirm-accept-btn');
@@ -12242,7 +12240,7 @@ async function confirmDeleteAlias() {
   btn.textContent = 'Deleting...';
 
   try {
-    const res = await fetch('/api.php?action=delete-alias&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/delete-alias?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12287,7 +12285,7 @@ async function loadAnalytics() {
   }
 
   try {
-    const res = await fetch('/api.php?action=analytics&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/analytics?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12453,9 +12451,9 @@ function trackLinkClick(linkUrl, linkTitle) {
   const payload = { username, linkUrl, linkTitle: linkTitle || '' };
   
   if (navigator.sendBeacon) {
-    navigator.sendBeacon('/api.php?action=track-click', JSON.stringify(payload));
+    navigator.sendBeacon('/api/track-click', JSON.stringify(payload));
   } else {
-    fetch('/api.php?action=track-click', {
+    fetch('/api/track-click', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -12484,7 +12482,7 @@ async function loadLinkStats() {
   if (!authToken) return;
   
   try {
-    const res = await fetch('/api.php?action=link-stats&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/link-stats?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12615,7 +12613,7 @@ function setup2FASection() {
 async function load2FAStatus() {
   if (!authToken) return;
   try {
-    const res = await fetch('/api.php?action=get-email-status&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/get-email-status?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
@@ -12671,7 +12669,7 @@ let _premiumPolling = null;
 async function loadPremiumStatus() {
   if (!authToken) return;
   try {
-    const res = await fetch('/api.php?action=premium-status&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/premium-status?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
@@ -12717,7 +12715,7 @@ async function startPremiumPayment() {
   showToast('Creating payment invoice...', 0);
 
   try {
-    const res = await fetch('/api.php?action=create-payment&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/create-payment?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
@@ -12766,7 +12764,7 @@ function startPaymentPolling() {
 
   _premiumPolling = setInterval(async () => {
     try {
-      const res = await fetch('/api.php?action=check-payment&token=' + encodeURIComponent(authToken), {
+      const res = await fetch('/api/check-payment?token=' + encodeURIComponent(authToken), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
@@ -12800,7 +12798,7 @@ async function handle2FAAction() {
 
   if (isEnable) {
     try {
-      const res = await fetch('/api.php?action=setup-totp&token=' + encodeURIComponent(authToken), {
+      const res = await fetch('/api/setup-totp?token=' + encodeURIComponent(authToken), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -12848,7 +12846,7 @@ async function verify2FASetup() {
   btn.textContent = 'Verifying...';
 
   try {
-    const res = await fetch('/api.php?action=verify-totp-setup&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/verify-totp-setup?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12893,7 +12891,7 @@ async function confirmDisable2FA() {
   btn.textContent = 'Disabling...';
 
   try {
-    const res = await fetch('/api.php?action=disable-totp&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/disable-totp?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -12994,7 +12992,7 @@ async function handleForgotPasswordClick() {
     btn.textContent = 'Sending...';
 
     try {
-      const res = await fetch('/api.php?action=send-email-code', {
+      const res = await fetch('/api/send-email-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, forReset: true })
@@ -13049,7 +13047,7 @@ async function handleForgotPasswordClick() {
     btn.textContent = 'Resetting...';
 
     try {
-      const res = await fetch('/api.php?action=reset-password-by-email', {
+      const res = await fetch('/api/reset-password-by-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotPwEmail, code, password: newPw })
@@ -13117,7 +13115,7 @@ async function submit2FALogin() {
   btn.textContent = 'Verifying...';
 
   try {
-    const res = await fetch('/api.php?action=verify-2fa-login', {
+    const res = await fetch('/api/verify-2fa-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, code })
@@ -13215,7 +13213,7 @@ async function loadTemplates() {
       search: currentTemplateSearch
     });
     
-    const res = await fetch('/api.php?action=list-templates&' + params);
+    const res = await fetch('/api/list-templates?' + params);
     const data = await res.json();
     
     templatesData = data;
@@ -13352,7 +13350,7 @@ async function openTemplateModal(templateId) {
   modal.style.display = 'flex';
   
   try {
-    const res = await fetch('/api.php?action=get-template&id=' + templateId);
+    const res = await fetch('/api/get-template?id=' + templateId);
     const data = await res.json();
     
     if (!data.success) {
@@ -13528,7 +13526,7 @@ async function applyTemplate() {
   if (!currentTemplate || !authToken) return;
   
   try {
-    const res = await fetch('/api.php?action=apply-template&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/apply-template?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -13574,7 +13572,7 @@ async function createTemplateFromProfile() {
   const pageData = JSON.parse(JSON.stringify(state.page));
   
   try {
-    const res = await fetch('/api.php?action=save-template&token=' + encodeURIComponent(authToken), {
+    const res = await fetch('/api/save-template?token=' + encodeURIComponent(authToken), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
