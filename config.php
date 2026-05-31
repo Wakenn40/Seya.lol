@@ -3,6 +3,7 @@ ob_start();
 
 define('CRYPTOBOT_API_KEY', '589559:AA7HCv6EFNClxj5NtbVXmY6enrQqj1n5U4e');
 define('SITE_URL', 'https://seya.lol');
+define('PREMIUM_ADMIN_SECRET', 'change_this_to_random_secret'); // Секретный ключ для админ-функции выдачи премиума
 
 $db_config = [
     'host' => 'localhost',

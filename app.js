@@ -184,6 +184,7 @@ function getDefaultPageData() {
     cursorTrail: { mode: 'none', image: '', config: {} },
     discord: { id: '', username: '', avatar: '', discriminator: '0' },
     clickToEnter: { enabled: false, text: 'Click to enter' },
+    premium: false,
     badgesEnabled: true,
     badgesColorName: '',
     badgesGlow: false,
@@ -5727,6 +5728,7 @@ function updatePublicPage() {
     );
     nameEl.style.fontFamily = `'${state.page.font}', sans-serif`;
     nameEl.style.fontSize = state.page.nameSize + 'px';
+    renderPremiumBadge(nameEl);
     renderBadges(nameEl);
   }
   if (bioEl) {
@@ -9483,6 +9485,20 @@ function renderBadges(container) {
   }
 }
 
+function renderPremiumBadge(container) {
+  if (!container || !state.page.premium) return;
+  let badge = container.querySelector('.premium-gem-badge');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'premium-gem-badge';
+    badge.style.cssText = 'display:inline-flex;vertical-align:middle;margin-left:8px;';
+    badge.title = 'Premium';
+    badge.innerHTML = '<svg width="18" height="18" viewBox="0 0 36 36" fill="none"><defs><linearGradient id="gem-badge-g" x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#d4a8ff"/><stop offset="45%" stop-color="#9b5dff"/><stop offset="100%" stop-color="#4a1d96"/></linearGradient></defs><polygon points="18,2 30,10 30,14 18,34 6,14 6,10" fill="url(#gem-badge-g)"/><polygon points="6,10 30,10 30,14 6,14" fill="#fff" fill-opacity="0.12"/><polygon points="6,14 18,34 12,24" fill="#000" fill-opacity="0.18"/><polygon points="30,14 24,24 18,34" fill="#fff" fill-opacity="0.07"/><polygon points="18,2 30,10 18,10" fill="#fff" fill-opacity="0.15"/><polygon points="18,4 26,9 18,9" fill="#fff" fill-opacity="0.22"/></svg>';
+    container.appendChild(badge);
+  }
+  badge.style.display = 'inline-flex';
+}
+
 function updatePreview() {
   if (state.currentUser && !pageModified) {
     if (checkPageModified()) {
@@ -12473,6 +12489,12 @@ async function loadLinkStats() {
     const data = await res.json();
     if (data.success) {
       updateLinkStatsUI(data);
+    }
+    if (data.premium_required) {
+      const body = document.getElementById('link-stats-body');
+      if (body) {
+        body.innerHTML = '<div class="link-stats-empty" style="color:#7c5ab8;">🔒 Link analytics require <strong>Premium</strong>. <a href="#" onclick="startPremiumPayment();return false;" style="color:#9b5dff;">Upgrade now →</a></div>';
+      }
     }
   } catch (e) {
     console.error('Failed to load link stats:', e);

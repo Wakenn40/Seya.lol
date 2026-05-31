@@ -54,6 +54,7 @@ RewriteRule ^api/create-payment$ api/create-payment.php [L]
 RewriteRule ^api/check-payment$ api/check-payment.php [L]
 RewriteRule ^api/premium-status$ api/premium-status.php [L]
 RewriteRule ^api/crypto-webhook$ api/crypto-webhook.php [L]
+RewriteRule ^api/grant-premium$ api/grant-premium.php [L]
 
 # Username routes - pass to index.php with query param
 RewriteCond %{REQUEST_URI} !api/
