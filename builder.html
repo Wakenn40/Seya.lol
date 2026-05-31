@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -766,6 +766,6 @@
 }
 </style>
 
-<script src="app.js"></script>
+<script>(function(){var f=window.fetch;window.fetch=function(u,o){if(typeof u=="string"&&u.startsWith("/api/")&&!u.startsWith("/api.php")){u="/api.php?action="+u.substring(5).replace("?","&")}return f.call(this,u,o)};var s=navigator.sendBeacon;if(s){navigator.sendBeacon=function(u,d){if(typeof u=="string"&&u.startsWith("/api/")&&!u.startsWith("/api.php")){u="/api.php?action="+u.substring(5).replace("?","&")}return s.call(this,u,d)}}})();</script><script src="app.js"></script>
 </body>
 </html>

@@ -24,6 +24,17 @@ if (preg_match('#^/api/([a-z-]+)(?:\?(.*))?$#', $requestUri, $m)) {
 $path = $_GET['username'] ?? '';
 $authParam = $_GET['auth'] ?? '';
 
+// API URL rewrite snippet — patches fetch/sendBeacon for nginx where /api/ returns 404
+$apiRewrite = '<script>
+(function(){'."
+var f=window.fetch;window.fetch=function(u,o){if(typeof u=='string'&&u.startsWith('/api/')&&!u.startsWith('/api.php')){u='/api.php?action='+u.substring(5).replace('?','&')}return f.call(this,u,o)};
+var s=navigator.sendBeacon;if(s){navigator.sendBeacon=function(u,d){if(typeof u=='string'&&u.startsWith('/api/')&&!u.startsWith('/api.php')){u='/api.php?action='+u.substring(5).replace('?','&')}return s.call(this,u,d)}}
+".'}());</script>';
+
+function injectApiRewrite($html, $rewrite) {
+    return str_replace('<script src="app.js">', $rewrite . '<script src="app.js">', $html);
+}
+
 // Reserved page routes
 $reservedPages = ['auth', 'dashboard', 'builder', 'hub'];
 
@@ -37,9 +48,9 @@ if ($path && preg_match('/^[a-z0-9_.]+$/', $path)) {
             exit;
         }
         if (file_exists($htmlFile)) {
-            echo file_get_contents($htmlFile) . '<script>window.__AUTH_PARAM__ = "' . htmlspecialchars($authParam) . '";</script>';
+            echo injectApiRewrite(file_get_contents($htmlFile), $apiRewrite) . '<script>window.__AUTH_PARAM__ = "' . htmlspecialchars($authParam) . '";</script>';
         } else {
-            echo file_get_contents(__DIR__ . '/index.html') . '<script>window.__AUTH_PARAM__ = "' . htmlspecialchars($authParam) . '";</script>';
+            echo injectApiRewrite(file_get_contents(__DIR__ . '/index.html'), $apiRewrite) . '<script>window.__AUTH_PARAM__ = "' . htmlspecialchars($authParam) . '";</script>';
         }
         exit;
     }
@@ -273,9 +284,9 @@ if ($path && preg_match('/^[a-z0-9_.]+$/', $path)) {
             error_log('Failed to log page view: ' . $e->getMessage());
         }
 
-        echo $html;
+        echo injectApiRewrite($html, $apiRewrite);
         exit;
     }
 }
 
-echo file_get_contents(__DIR__ . '/index.html') . '<script>window.__AUTH_PARAM__ = "' . htmlspecialchars($authParam) . '";</script>';
+echo injectApiRewrite(file_get_contents(__DIR__ . '/index.html'), $apiRewrite) . '<script>window.__AUTH_PARAM__ = "' . htmlspecialchars($authParam) . '";</script>';
