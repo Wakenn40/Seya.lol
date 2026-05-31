@@ -1,5 +1,8 @@
 DirectoryIndex index.php index.html
 
+# Fallback: route all 404s to index.php (works without mod_rewrite)
+ErrorDocument 404 /index.php
+
 RewriteEngine On
 RewriteBase /
 
@@ -55,6 +58,9 @@ RewriteRule ^api/check-payment$ api/check-payment.php [L]
 RewriteRule ^api/premium-status$ api/premium-status.php [L]
 RewriteRule ^api/crypto-webhook$ api/crypto-webhook.php [L]
 RewriteRule ^api/grant-premium$ api/grant-premium.php [L]
+
+# API fallback — if mod_rewrite bypasses individual rules, route through index.php
+RewriteRule ^api/ index.php [L,QSA]
 
 # Username routes - pass to index.php with query param
 RewriteCond %{REQUEST_URI} !api/

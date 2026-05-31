@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $db_config = [
     'host' => 'localhost',
     'port' => 3306,
@@ -28,6 +31,7 @@ try {
     $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 } catch (PDOException $e) {
 error_log('check-session DB error: ' . $e->getMessage());
+    ob_clean();
     echo json_encode(['valid' => false, 'error' => 'DB connection failed']);
     exit;
 }
@@ -57,6 +61,7 @@ if (!empty($tokenFromQuery)) {
 
     if (!preg_match('/Bearer\s+(.+)/i', $auth, $matches)) {
         error_log('check-session: no Bearer token found');
+        ob_clean();
         echo json_encode(['valid' => false, 'error' => 'No Bearer token']);
         exit;
     }
@@ -70,6 +75,7 @@ $stmt->execute([$token]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
+    ob_clean();
     echo json_encode(['valid' => false]);
     exit;
 }
@@ -219,6 +225,7 @@ if ($page) {
     error_log('check-session: layout string length: ' . strlen($page['layout'] ?? ''));
 }
 
+ob_clean();
 echo json_encode([
     'valid' => true,
     'username' => $user['username'],

@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $db_config = [
     'host' => 'localhost',
     'port' => 3306,
@@ -28,7 +31,8 @@ try {
     $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
+    ob_clean();
+echo json_encode(['error' => 'Database connection failed']);
     exit;
 }
 
@@ -69,7 +73,8 @@ if (!empty($tokenFromQuery)) {
 }
 if (!$token) {
     http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+    ob_clean();
+echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
 
@@ -79,7 +84,8 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
     http_response_code(401);
-    echo json_encode(['error' => 'Invalid token']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid token']);
     exit;
 }
 
@@ -212,7 +218,8 @@ try {
 
     $avgDaily = $days > 0 ? round($totalViews / $days, 1) : 0;
 
-    echo json_encode([
+    ob_clean();
+echo json_encode([
         'totalViews' => $totalViews,
         'avgDaily' => $avgDaily,
         'bestDay' => $bestDay,
@@ -228,5 +235,6 @@ try {
 } catch (Exception $e) {
     error_log('analytics.php error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to load analytics']);
+    ob_clean();
+echo json_encode(['error' => 'Failed to load analytics']);
 }

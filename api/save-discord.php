@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $db_config = [
     'host' => 'localhost',
     'port' => 3306,
@@ -27,7 +30,8 @@ try {
     );
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
+    ob_clean();
+echo json_encode(['error' => 'Database connection failed']);
     exit;
 }
 
@@ -36,7 +40,8 @@ $token = $headers['Authorization'] ?? ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
 
 if (!$token) {
     http_response_code(401);
-    echo json_encode(['error' => 'No token provided']);
+    ob_clean();
+echo json_encode(['error' => 'No token provided']);
     exit;
 }
 
@@ -48,7 +53,8 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
     http_response_code(401);
-    echo json_encode(['error' => 'Invalid token']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid token']);
     exit;
 }
 
@@ -64,7 +70,8 @@ $discordPremiumType = (int)($data['discord_premium_type'] ?? 0);
 
 if (!$discordId) {
     http_response_code(400);
-    echo json_encode(['error' => 'Discord ID required']);
+    ob_clean();
+echo json_encode(['error' => 'Discord ID required']);
     exit;
 }
 
@@ -75,11 +82,13 @@ try {
     $stmt = $pdo->prepare('UPDATE pages SET discord_id = ?, discord_username = ?, discord_avatar = ?, discord_discriminator = ?, discord_public_flags = ?, discord_premium_type = ? WHERE user_id = ?');
     $stmt->execute([$discordId, $discordUsername, $discordAvatar, $discordDiscriminator, $discordPublicFlags, $discordPremiumType, $user['id']]);
     
-    echo json_encode([
+    ob_clean();
+echo json_encode([
         'success' => true,
         'message' => 'Discord account connected'
     ]);
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to save Discord data']);
+    ob_clean();
+echo json_encode(['error' => 'Failed to save Discord data']);
 }

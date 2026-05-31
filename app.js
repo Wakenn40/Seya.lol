@@ -1,5 +1,5 @@
-/**
- * seya.lol — app.js
+﻿/**
+ * seya.lol ΓÇö app.js
  * Handles routing, auth, builder state, and preview updates.
  * Pure vanilla JS, no dependencies.
  */
@@ -43,8 +43,8 @@ const state = {
   page: {
     displayName: '',
     displayNameHtml: '',
-    bio: 'Hey, this is my page ✨',
-    bioHtml: 'Hey, this is my page ✨',
+    bio: 'Hey, this is my page Γ£¿',
+    bioHtml: 'Hey, this is my page Γ£¿',
     avatar: '',
     music: {
       src: '',
@@ -54,8 +54,8 @@ const state = {
     },
     linksEnabled: true,
     links: [
-      { emoji: '📸', label: 'Instagram', url: 'https://instagram.com', style: 'icon' },
-      { emoji: '🐦', label: 'Twitter / X', url: 'https://x.com', style: 'icon' },
+      { emoji: '≡ƒô╕', label: 'Instagram', url: 'https://instagram.com', style: 'icon' },
+      { emoji: '≡ƒÉª', label: 'Twitter / X', url: 'https://x.com', style: 'icon' },
     ],
     bg: 'bg-black',
     bgImageGlobal: '',
@@ -148,8 +148,8 @@ function getDefaultPageData() {
   return {
     displayName: '',
     displayNameHtml: '',
-    bio: 'Hey, this is my page ✨',
-    bioHtml: 'Hey, this is my page ✨',
+    bio: 'Hey, this is my page Γ£¿',
+    bioHtml: 'Hey, this is my page Γ£¿',
     avatar: '',
     music: { src: '', name: '', gain: 1, volume: 1 },
     visualizer: { enabled: false, source: 'page', style: 'bars', color: '#00ff88', bars: 64, sensitivity: 1 },
@@ -263,7 +263,7 @@ function normalizePageData(pageData) {
     if (!normalized.layout.phone) normalized.layout.phone = {};
     normalized.layout.phone = { ...normalized.layout.phone, ...pageData.layout.phone };
   }
-  // Ensure cursorTrail.config is an object, not an array (PHP json_decode([]) → array bug)
+  // Ensure cursorTrail.config is an object, not an array (PHP json_decode([]) ΓåÆ array bug)
   if (normalized.cursorTrail && Array.isArray(normalized.cursorTrail.config)) {
     normalized.cursorTrail.config = {};
   }
@@ -285,7 +285,7 @@ function normalizePageData(pageData) {
 }
 
 /* ================================================
-  MUSIC — background playback (no visible player)
+  MUSIC ΓÇö background playback (no visible player)
   ================================================ */
 const musicBg = {
   audio: null,
@@ -494,7 +494,7 @@ function setupMusicDemoControls() {
 }
 
 /* ================================================
-   MUSIC VISUALIZER — Web Audio API spectrum analyzer
+   MUSIC VISUALIZER ΓÇö Web Audio API spectrum analyzer
    ================================================ */
 const musicVisualizer = {
   ctx: null,
@@ -951,7 +951,7 @@ function updateVisualizerRendering() {
 }
 
 /* ================================================
-   ROUTER — screen switching
+   ROUTER ΓÇö screen switching
    ================================================ */
 function showScreen(id, opts = {}) {
   const { push = true, payload = null } = opts;
@@ -966,7 +966,7 @@ function showScreen(id, opts = {}) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById('screen-' + id);
   
-  // Screen not found in current page — do a full redirect
+  // Screen not found in current page ΓÇö do a full redirect
   if (!target) {
     const routeMap = { auth: '/auth', dashboard: '/dashboard', builder: '/builder', landing: '/' };
     if (routeMap[id] !== undefined) {
@@ -1106,7 +1106,7 @@ async function loadPublicPage(username) {
       console.log('[Load] layout.phone.tilt3D:', JSON.stringify(state.page.layout?.phone?.tilt3D));
       Object.entries(state.page.layout || {}).forEach(([key, box]) => {
         if (box.rotate) {
-          console.log(`[Load] ${key} rotation: ${box.rotate}°`);
+          console.log(`[Load] ${key} rotation: ${box.rotate}┬░`);
         }
       });
       
@@ -1308,7 +1308,7 @@ function setupAuth() {
   if (discordBtn) {
     discordBtn.addEventListener('click', () => {
       const clientId = '1505514252473991238';
-      const redirectUri = encodeURIComponent('https://seya.lol/api/discord-callback.php');
+      const redirectUri = encodeURIComponent('https://seya.lol/api/discord-callback');
       const scope = 'identify%20guilds%20email';
       const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
       window.location.href = oauthUrl;
@@ -1412,7 +1412,7 @@ async function handleAuthSubmit() {
 
       showScreen('landing');
       updateLandingButtons();
-      showToast('Account created! 🎉');
+      showToast('Account created! ≡ƒÄë');
 
       originalPageState = JSON.parse(JSON.stringify(state.page));
       pageModified = false;
@@ -1492,7 +1492,7 @@ async function handleAuthSubmit() {
 
       showScreen('landing');
       updateLandingButtons();
-      showToast('Welcome back! 👋');
+      showToast('Welcome back! ≡ƒæï');
 
       originalPageState = JSON.parse(JSON.stringify(state.page));
       pageModified = false;
@@ -1528,12 +1528,14 @@ function setupChangePassword() {
 
   if (!step1Btn) return;
 
-  currentInput.addEventListener('input', () => {
-    document.getElementById('cp-current-hint').textContent = '';
+  currentInput?.addEventListener('input', () => {
+    const h = document.getElementById('cp-current-hint');
+    if (h) h.textContent = '';
   });
 
-  newInput.addEventListener('input', () => {
+  newInput?.addEventListener('input', () => {
     const h = document.getElementById('cp-new-hint');
+    if (!h) return;
     if (newInput.value.length > 0 && newInput.value.length < 4) {
       h.textContent = 'Minimum 4 characters';
     } else {
@@ -1541,8 +1543,9 @@ function setupChangePassword() {
     }
   });
 
-  confirmInput.addEventListener('input', () => {
+  confirmInput?.addEventListener('input', () => {
     const h = document.getElementById('cp-confirm-hint');
+    if (!h) return;
     if (confirmInput.value !== newInput.value && confirmInput.value.length > 0) {
       h.textContent = 'Passwords do not match';
     } else {
@@ -1550,8 +1553,9 @@ function setupChangePassword() {
     }
   });
 
-  finalInput.addEventListener('input', () => {
+  finalInput?.addEventListener('input', () => {
     const h = document.getElementById('cp-final-hint');
+    if (!h) return;
     if (finalInput.value.length > 0 && finalInput.value.length < 4) {
       h.textContent = 'Minimum 4 characters';
     } else {
@@ -1559,8 +1563,9 @@ function setupChangePassword() {
     }
   });
 
-  finalConfirm.addEventListener('input', () => {
+  finalConfirm?.addEventListener('input', () => {
     const h = document.getElementById('cp-final-confirm-hint');
+    if (!h) return;
     if (finalConfirm.value !== finalInput.value && finalConfirm.value.length > 0) {
       h.textContent = 'Passwords do not match';
     } else {
@@ -1569,16 +1574,16 @@ function setupChangePassword() {
   });
 
   const handleEnter1 = e => { if (e.key === 'Enter') handleCpStep1(); };
-  currentInput.addEventListener('keydown', handleEnter1);
-  newInput.addEventListener('keydown', handleEnter1);
-  confirmInput.addEventListener('keydown', handleEnter1);
+  currentInput?.addEventListener('keydown', handleEnter1);
+  newInput?.addEventListener('keydown', handleEnter1);
+  confirmInput?.addEventListener('keydown', handleEnter1);
 
   const handleEnter2 = e => { if (e.key === 'Enter') handleCpStep2(); };
-  finalInput.addEventListener('keydown', handleEnter2);
-  finalConfirm.addEventListener('keydown', handleEnter2);
+  finalInput?.addEventListener('keydown', handleEnter2);
+  finalConfirm?.addEventListener('keydown', handleEnter2);
 
-  step1Btn.addEventListener('click', handleCpStep1);
-  step2Btn.addEventListener('click', handleCpStep2);
+  step1Btn?.addEventListener('click', handleCpStep1);
+  step2Btn?.addEventListener('click', handleCpStep2);
 
   const faBtn = document.getElementById('cp-2fa-verify-btn');
   const faInput = document.getElementById('cp-2fa-code');
@@ -1660,7 +1665,7 @@ async function handleCp2FAVerify() {
     hint.style.color = 'var(--danger)';
   }
   btn.disabled = false;
-  btn.textContent = 'Verify →';
+  btn.textContent = 'Verify ΓåÆ';
 }
 
 async function handleCpStep1() {
@@ -1842,7 +1847,7 @@ async function checkSession() {
       
       return true;
     } else {
-      console.warn('[checkSession] Server returned valid:false — clearing authToken');
+      console.warn('[checkSession] Server returned valid:false ΓÇö clearing authToken');
       console.warn('[checkSession] Response data:', JSON.stringify(data));
       localStorage.removeItem('authToken');
       localStorage.removeItem('username');
@@ -1873,8 +1878,8 @@ function logout() {
   state.page = {
     displayName: '',
     displayNameHtml: '',
-    bio: 'Hey, this is my page ✨',
-    bioHtml: 'Hey, this is my page ✨',
+    bio: 'Hey, this is my page Γ£¿',
+    bioHtml: 'Hey, this is my page Γ£¿',
     avatar: '',
     music: { src: '', name: '', gain: 1, volume: 1 },
     linksEnabled: false,
@@ -2017,7 +2022,7 @@ async function savePageToServer(publish = false) {
   // Log rotation values
   Object.entries(state.page.layout || {}).forEach(([key, box]) => {
     if (box.rotate) {
-      console.log(`[Save] ${key} rotation: ${box.rotate}°`);
+      console.log(`[Save] ${key} rotation: ${box.rotate}┬░`);
     }
   });
   
@@ -2049,16 +2054,16 @@ async function savePageToServer(publish = false) {
       console.log('[Save Debug] Server saved customFonts:', JSON.stringify(data.debug.customFonts || []).substring(0, 100));
     }
     if (publish) {
-        showToast('Page published! 🌟');
+        showToast('Page published! ≡ƒîƒ');
       } else {
-        showToast('Page saved! 💾');
+        showToast('Page saved! ≡ƒÆ╛');
       }
       pageModified = false;
       originalPageState = JSON.parse(JSON.stringify(state.page));
     } else {
       console.log('Save failed:', data);
-      console.log('Save failed — authToken at time of failure:', authToken ? `${authToken.substring(0, 10)}...` : 'null');
-      console.log('Save failed — status:', res.status);
+      console.log('Save failed ΓÇö authToken at time of failure:', authToken ? `${authToken.substring(0, 10)}...` : 'null');
+      console.log('Save failed ΓÇö status:', res.status);
       if (data.error === 'Invalid token') {
         console.error('[CRITICAL] Server rejected token. Token in localStorage may differ from DB.');
         console.error('[CRITICAL] localStorage authToken (first/last 6):',
@@ -2106,7 +2111,7 @@ function setAuthMode(mode) {
     const pi = document.getElementById('password-input');
     if (pi) pi.placeholder = 'Your password';
     const sb = document.getElementById('auth-submit-btn');
-    if (sb) sb.textContent = 'Log in →';
+    if (sb) sb.textContent = 'Log in ΓåÆ';
   } else {
     title.textContent  = 'Create account';
     if (sub) sub.textContent    = 'Choose a nickname and password';
@@ -2119,7 +2124,7 @@ function setAuthMode(mode) {
     const pi = document.getElementById('password-input');
     if (pi) pi.placeholder = 'Create a password';
     const sb = document.getElementById('auth-submit-btn');
-    if (sb) sb.textContent = 'Create account →';
+    if (sb) sb.textContent = 'Create account ΓåÆ';
   }
 }
 
@@ -2157,7 +2162,7 @@ function setupDiscord() {
   if (connectBtn) {
     connectBtn.addEventListener('click', () => {
       const clientId = '1505514252473991238';
-      const redirectUri = encodeURIComponent('https://seya.lol/api/discord-callback.php');
+      const redirectUri = encodeURIComponent('https://seya.lol/api/discord-callback');
       const scope = 'identify%20guilds%20email';
       const state = encodeURIComponent(authToken || '');
       const oauthUrl = 'https://discord.com/oauth2/authorize?client_id=' + clientId + '&redirect_uri=' + redirectUri + '&response_type=code&scope=' + scope + '&state=' + state;
@@ -2169,7 +2174,7 @@ function setupDiscord() {
   if (unlinkBtn) {
     unlinkBtn.addEventListener('click', async () => {
       try {
-        const res = await fetch('/api/discord-unlink.php?token=' + encodeURIComponent(authToken), {
+        const res = await fetch('/api/discord-unlink?token=' + encodeURIComponent(authToken), {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + authToken }
         });
@@ -2185,7 +2190,7 @@ function setupDiscord() {
         }
       } catch (e) {
         console.error('Failed to unlink Discord', e);
-        showToast('Network error — could not disconnect');
+        showToast('Network error ΓÇö could not disconnect');
       }
     });
   }
@@ -2390,7 +2395,7 @@ function updatePreviewSpotifyWidget() {
     }
 }
 
-/* Custom Player — setup */
+/* Custom Player ΓÇö setup */
 function setupCustomPlayer() {
   const toggleBtn = document.getElementById('custom-player-toggle');
   const controls = document.getElementById('custom-player-controls');
@@ -2513,15 +2518,15 @@ function setupCustomPlayer() {
           audio.addEventListener('timeupdate', () => {
             const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
             document.querySelectorAll('.cpw-progress-bar').forEach(el => el.style.width = `${pct}%`);
-            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = audio.paused ? '▶' : '⏸'; });
+            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = audio.paused ? 'Γû╢' : 'ΓÅ╕'; });
             document.querySelectorAll('.cpw-time').forEach(el => { el.textContent = formatTime(audio.currentTime); });
             document.querySelectorAll('.cpw-duration').forEach(el => { el.textContent = formatTime(audio.duration); });
           });
           audio.addEventListener('play', () => {
-            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '⏸'; });
+            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = 'ΓÅ╕'; });
           });
           audio.addEventListener('pause', () => {
-            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '▶'; });
+            document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = 'Γû╢'; });
           });
           document.body.appendChild(audio);
         }
@@ -2685,9 +2690,9 @@ function renderCustomPlayerHTML(cp) {
       <div class="cpw-body">
         ${hasTitle ? `<div class="cpw-title">${escapeHtml(cp.title)}</div>` : ''}
         <div class="cpw-controls">
-          <button class="cpw-prev-btn" data-action="cp-prev">⏮</button>
-          <button class="cpw-play-btn" data-action="cp-toggle">▶</button>
-          <button class="cpw-next-btn" data-action="cp-next">⏭</button>
+          <button class="cpw-prev-btn" data-action="cp-prev">ΓÅ«</button>
+          <button class="cpw-play-btn" data-action="cp-toggle">Γû╢</button>
+          <button class="cpw-next-btn" data-action="cp-next">ΓÅ¡</button>
           <div class="cpw-progress-wrap">
             <div class="cpw-progress-bar" id="cp-progress"></div>
           </div>
@@ -2696,7 +2701,7 @@ function renderCustomPlayerHTML(cp) {
         </div>
       </div>
       <div class="cpw-volume">
-        <span class="cpw-vol-icon">🔊</span>
+        <span class="cpw-vol-icon">≡ƒöè</span>
         <div class="cpw-volume-slider-wrap">
           <input type="range" class="cpw-volume-slider" min="0" max="100" value="${volPct}" />
         </div>
@@ -2752,7 +2757,7 @@ function renderPublicCustomPlayer() {
     audio.addEventListener('timeupdate', () => {
       const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
       document.querySelectorAll('.cpw-progress-bar').forEach(el => el.style.width = `${pct}%`);
-      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = audio.paused ? '▶' : '⏸'; });
+      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = audio.paused ? 'Γû╢' : 'ΓÅ╕'; });
       document.querySelectorAll('.cpw-time').forEach(el => { el.textContent = formatTime(audio.currentTime); });
       document.querySelectorAll('.cpw-duration').forEach(el => { el.textContent = formatTime(audio.duration); });
     });
@@ -2760,10 +2765,10 @@ function renderPublicCustomPlayer() {
       document.querySelectorAll('.cpw-duration').forEach(el => { el.textContent = formatTime(audio.duration); });
     });
     audio.addEventListener('play', () => {
-      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '⏸'; });
+      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = 'ΓÅ╕'; });
     });
     audio.addEventListener('pause', () => {
-      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = '▶'; });
+      document.querySelectorAll('.cpw-play-btn').forEach(btn => { btn.textContent = 'Γû╢'; });
     });
     document.body.appendChild(audio);
   }
@@ -2774,7 +2779,7 @@ function renderPublicCustomPlayer() {
   }
 }
 /* ================================================
-    BUILDER — sidebar panels
+    BUILDER ΓÇö sidebar panels
     ================================================ */
 function setupBuilderNav() {
   document.querySelectorAll('.section-btn').forEach(btn => {
@@ -2823,7 +2828,7 @@ function ensureRotateHandle(el) {
   if (!el.querySelector('.rotation-angle-tooltip')) {
     const tooltip = document.createElement('div');
     tooltip.className = 'rotation-angle-tooltip';
-    tooltip.textContent = '0°';
+    tooltip.textContent = '0┬░';
     el.appendChild(tooltip);
   }
 }
@@ -3163,7 +3168,7 @@ function handleMusicFile(file, hintEl, onDone) {
       if (hintEl) hintEl.textContent = '';
       updatePreview();
       if (onDone) onDone();
-      showToast(state.page.music.gain < 0.99 ? 'Music added (volume normalized) 🎵' : 'Music added 🎵');
+      showToast(state.page.music.gain < 0.99 ? 'Music added (volume normalized) ≡ƒÄ╡' : 'Music added ≡ƒÄ╡');
       playBgMusic();
     })
     .catch(() => {
@@ -3354,7 +3359,7 @@ function getServiceIconContent(url, fallbackEmoji) {
   if (service && serviceIcons[service]) {
     return serviceIcons[service];
   }
-  return fallbackEmoji || '🔗';
+  return fallbackEmoji || '≡ƒöù';
 }
 
 function getColoredServiceIcon(url, fallbackEmoji) {
@@ -3474,11 +3479,11 @@ function setupLinks() {
   const linkScaleVal = document.getElementById('link-icon-scale-val');
   if (linkScaleSlider) {
     linkScaleSlider.value = String(state.page.linkIconScale ?? 1);
-    if (linkScaleVal) linkScaleVal.textContent = `${state.page.linkIconScale ?? 1}×`;
+    if (linkScaleVal) linkScaleVal.textContent = `${state.page.linkIconScale ?? 1}├ù`;
     linkScaleSlider.addEventListener('input', () => {
       pushHistory();
       state.page.linkIconScale = Number(linkScaleSlider.value);
-      if (linkScaleVal) linkScaleVal.textContent = `${state.page.linkIconScale}×`;
+      if (linkScaleVal) linkScaleVal.textContent = `${state.page.linkIconScale}├ù`;
       renderPreviewLinks();
       updatePublicPage();
     });
@@ -3508,7 +3513,7 @@ function setupLinks() {
             linkUrlInput.type = 'text';
           }
         } else {
-          linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+          linkTypeBtn.innerHTML = '<span id="link-type-btn-text">≡ƒöù</span>';
           if (linkUrlInput) {
             linkUrlInput.placeholder = 'https://...';
             linkUrlInput.type = 'url';
@@ -3630,7 +3635,7 @@ function cancelLinkEdit() {
   if (linkTypeBtn) {
     linkTypeBtn.dataset.linkType = 'url';
     linkTypeBtn.dataset.copyIcon = '';
-    linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+    linkTypeBtn.innerHTML = '<span id="link-type-btn-text">≡ƒöù</span>';
   }
   const urlInput = document.getElementById('link-url');
   if (urlInput) {
@@ -3677,8 +3682,8 @@ function startEditLink(index) {
     if (linkTypeBtn) {
       linkTypeBtn.dataset.linkType = 'copy';
       linkTypeBtn.dataset.copyIcon = link.copyIcon || '';
-      const icons = { btc: '₿', eth: 'Ξ', solana: '◎' };
-      linkTypeBtn.innerHTML = `<span id="link-type-btn-text">${icons[link.copyIcon] || '◎'}</span>`;
+      const icons = { btc: 'Γé┐', eth: '╬₧', solana: 'ΓùÄ' };
+      linkTypeBtn.innerHTML = `<span id="link-type-btn-text">${icons[link.copyIcon] || 'ΓùÄ'}</span>`;
     }
     if (linkUrlInput) {
       linkUrlInput.placeholder = 'Wallet address...';
@@ -3689,8 +3694,8 @@ function startEditLink(index) {
     if (linkTypeBtn) {
       linkTypeBtn.dataset.linkType = 'url';
       linkTypeBtn.dataset.copyIcon = '';
-      const emoji = link.emoji === '🔗' ? '' : link.emoji;
-      linkTypeBtn.innerHTML = `<span id="link-type-btn-text">${emoji || '🔗'}</span>`;
+      const emoji = link.emoji === '≡ƒöù' ? '' : link.emoji;
+      linkTypeBtn.innerHTML = `<span id="link-type-btn-text">${emoji || '≡ƒöù'}</span>`;
     }
     if (linkUrlInput) {
       linkUrlInput.placeholder = 'https://...';
@@ -3757,7 +3762,7 @@ function saveLink() {
   const linkGlow = glowBtn && glowBtn.textContent.includes('On');
 
   const icon = currentLinkIcon || '';
-  const emoji = type === 'copy' ? '' : '🔗';
+  const emoji = type === 'copy' ? '' : '≡ƒöù';
   const linkUrl = type === 'url' ? url : '';
   const copyText = type === 'copy' ? url : '';
 
@@ -3784,7 +3789,7 @@ function saveLink() {
   if (linkTypeBtn) {
     linkTypeBtn.dataset.linkType = 'url';
     linkTypeBtn.dataset.copyIcon = '';
-    linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+    linkTypeBtn.innerHTML = '<span id="link-type-btn-text">≡ƒöù</span>';
   }
   urlEl.placeholder = 'https://...';
   urlEl.type = 'url';
@@ -3814,7 +3819,7 @@ function removeLink(index) {
     if (linkTypeBtn) {
       linkTypeBtn.dataset.linkType = 'url';
       linkTypeBtn.dataset.copyIcon = '';
-      linkTypeBtn.innerHTML = '<span id="link-type-btn-text">🔗</span>';
+      linkTypeBtn.innerHTML = '<span id="link-type-btn-text">≡ƒöù</span>';
     }
     clearLinkIconUI();
     updateLinkFormState();
@@ -3844,16 +3849,16 @@ function renderLinksList() {
     if (link.icon && (link.icon.startsWith('data:') || link.icon.startsWith('http'))) {
       iconHtml = `<img src="${link.icon}" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;">`;
     } else if (link.type === 'copy') {
-      const icons = { btc: '₿', eth: 'Ξ', solana: '◎' };
-      iconHtml = `<span style="margin-right:4px;">${icons[link.copyIcon] || '◎'}</span>`;
+      const icons = { btc: 'Γé┐', eth: '╬₧', solana: 'ΓùÄ' };
+      iconHtml = `<span style="margin-right:4px;">${icons[link.copyIcon] || 'ΓùÄ'}</span>`;
     } else {
-      iconHtml = link.emoji || '🔗';
+      iconHtml = link.emoji || '≡ƒöù';
     }
     const typeTag = link.type === 'copy' ? ' <span style="font-size:10px;color:var(--muted);">[copy]</span>' : '';
     item.innerHTML = `
       <span class="link-item-label">${iconHtml} ${link.label}${typeTag}</span>
-      <button class="link-edit-btn" aria-label="Edit link ${link.label}" title="Edit">✏️</button>
-      <button class="link-remove" aria-label="Remove link ${link.label}" title="Delete">×</button>
+      <button class="link-edit-btn" aria-label="Edit link ${link.label}" title="Edit">Γ£Å∩╕Å</button>
+      <button class="link-remove" aria-label="Remove link ${link.label}" title="Delete">├ù</button>
     `;
     item.querySelector('.link-edit-btn').addEventListener('click', (ev) => {
       ev.stopPropagation();
@@ -3964,7 +3969,7 @@ function renderPreviewLinks() {
       if (service) {
         div.innerHTML = `${serviceIcon}<span class="link-label-text">${link.label || ''}</span>`;
       } else {
-        div.textContent = `${link.emoji || '🔗'} ${link.label || ''}`;
+        div.textContent = `${link.emoji || '≡ƒöù'} ${link.label || ''}`;
       }
     }
 
@@ -4730,7 +4735,7 @@ function setupProfileInputs() {
     });
   }
 
-  // Layers of page toggle — enables multi-floor mode
+  // Layers of page toggle ΓÇö enables multi-floor mode
   const layersToggle = document.getElementById('bio-layers-toggle');
   const floorSwitcher = document.getElementById('floor-switcher');
   if (layersToggle) {
@@ -5820,7 +5825,7 @@ function updatePublicPage() {
             if (service) {
               a.innerHTML = `${serviceIcon}<span class="link-label-text">${link.label || ''}</span>`;
             } else {
-              a.textContent = `${link.emoji || '🔗'} ${link.label || ''}`;
+              a.textContent = `${link.emoji || '≡ƒöù'} ${link.label || ''}`;
             }
           }
           a.style.borderColor = `${state.page.accentColor}28`;
@@ -6005,7 +6010,7 @@ function setupPublicPageResponsiveScale() {
     const spotifyTilt = !!state.page.spotifyWidgetTilt;
     const customPlayerTilt = !!state.page.customPlayerTilt;
     const anyTilt = phoneTilt || discordTilt || spotifyTilt || customPlayerTilt;
-    console.log('[3D TILT] tilts — phone:', phoneTilt, 'discord:', discordTilt, 'spotify:', spotifyTilt, 'customPlayer:', customPlayerTilt);
+    console.log('[3D TILT] tilts ΓÇö phone:', phoneTilt, 'discord:', discordTilt, 'spotify:', spotifyTilt, 'customPlayer:', customPlayerTilt);
 
     if (!anyTilt) {
       reset3DTilt();
@@ -6061,7 +6066,7 @@ function setupPublicPageResponsiveScale() {
       return;
     }
 
-    // Reference element for mouse tracking — phone or first widget
+    // Reference element for mouse tracking ΓÇö phone or first widget
     const refEl = (tiltElements.phone && tiltElements.phone.el) ||
                   (tiltElements.discord && tiltElements.discord.el) ||
                   (tiltElements.spotify && tiltElements.spotify.el) ||
@@ -7286,7 +7291,7 @@ function setupPreviewEditor() {
       
       if (angleTooltip) {
         angleTooltip.classList.add('visible');
-        angleTooltip.textContent = `${Math.round(snappedRotation)}°`;
+        angleTooltip.textContent = `${Math.round(snappedRotation)}┬░`;
         const tooltipX = 50 + 55 * Math.cos(((startBox._startRotation + (angle - startBox._startAngle)) * Math.PI) / 180 - Math.PI / 2);
         const tooltipY = 50 + 55 * Math.sin(((startBox._startRotation + (angle - startBox._startAngle)) * Math.PI) / 180 - Math.PI / 2);
         angleTooltip.style.left = `${tooltipX}%`;
@@ -9469,7 +9474,7 @@ function renderBadges(container) {
   if (!hasContent) panel.style.display = 'none';
   container.appendChild(panel);
   if (owner) {
-    fetch('/api/user-rank.php?user=' + encodeURIComponent(owner))
+    fetch('/api/user-rank?user=' + encodeURIComponent(owner))
       .then(r => r.json())
       .then(data => {
         if (data.rank && data.rank <= 50) {
@@ -9655,7 +9660,7 @@ updatePreviewSpotifyWidget();
 }
 
 /* ================================================
-   LANYARD — real-time Discord presence via WebSocket
+   LANYARD ΓÇö real-time Discord presence via WebSocket
    ================================================ */
 const lanyardState = { ws: null, connecting: false, subscribedId: null, heartbeat: null, presence: null, pollInterval: null, wsRetries: 0, maxWsRetries: 3 };
 
@@ -10045,7 +10050,7 @@ function setupGlobalActions() {
     const pctEl = slider.parentElement.querySelector('.cpw-vol-pct');
     if (pctEl) pctEl.textContent = `${Math.round(vol * 100)}%`;
     const icon = slider.parentElement.querySelector('.cpw-vol-icon');
-    if (icon) icon.textContent = vol === 0 ? '🔇' : vol < 0.5 ? '🔉' : '🔊';
+    if (icon) icon.textContent = vol === 0 ? '≡ƒöç' : vol < 0.5 ? '≡ƒöë' : '≡ƒöè';
     if (state.page.customPlayer) {
       state.page.customPlayer.volume = vol;
       const sidebarSlider = document.getElementById('custom-player-volume');
@@ -10191,7 +10196,7 @@ function setupGlobalActions() {
         } else {
           audio.pause();
         }
-        el.textContent = audio.paused ? '▶' : '⏸';
+        el.textContent = audio.paused ? 'Γû╢' : 'ΓÅ╕';
         break;
 
       case 'cp-prev':
@@ -10211,7 +10216,7 @@ function setupGlobalActions() {
 }
 
 /* ================================================
-   KEYBOARD — dash-card "Enter" as click
+   KEYBOARD ΓÇö dash-card "Enter" as click
    ================================================ */
 function setupKeyboard() {
   document.querySelectorAll('.dash-card[tabindex]').forEach(card => {
@@ -10340,7 +10345,7 @@ function setupCursorUpload() {
 }
 
 /* ================================================
-   CURSOR TRAIL — particle effects
+   CURSOR TRAIL ΓÇö particle effects
    ================================================ */
 const TRAIL_PRESETS = {
   stars: { color: '#ffd700', size: 6, lifetime: 600, speed: 3, count: 1, opacity: 0.9, shape: 'star' },
@@ -11146,18 +11151,18 @@ function getObjectLabel(key) {
 
 function getObjectIcon(key) {
   const icons = {
-    'phone': '📱',
-    'avatar': '👤',
+    'phone': '≡ƒô▒',
+    'avatar': '≡ƒæñ',
     'name': 'T',
-    'bio': '📝',
-    'link-0': '🔗',
-    'link-1': '🔗',
-    'link-2': '🔗',
-    'link-3': '🔗',
-    'link-4': '🔗'
+    'bio': '≡ƒô¥',
+    'link-0': '≡ƒöù',
+    'link-1': '≡ƒöù',
+    'link-2': '≡ƒöù',
+    'link-3': '≡ƒöù',
+    'link-4': '≡ƒöù'
   };
-  if (key.startsWith('obj-')) return '🖼';
-  return icons[key] || '●';
+  if (key.startsWith('obj-')) return '≡ƒû╝';
+  return icons[key] || 'ΓùÅ';
 }
 
 function selectLayer(layerId) {
@@ -11361,7 +11366,7 @@ function applyPublicLayerZIndex() {
 }
 
 /* ================================================
-   FLOORS — multi-floor page system
+   FLOORS ΓÇö multi-floor page system
    Each floor has its own builder state (layout, displayName, bio, etc.)
    Floor 0 = the main state.page itself (no separate storage)
    Floors 1 & 2 = stored in state.page.floors[0] & state.page.floors[1]
@@ -11457,7 +11462,7 @@ function renderFloorSwitcher() {
   }
 }
 
-// Public page: floors are NOT stacked — only published floor is shown
+// Public page: floors are NOT stacked ΓÇö only published floor is shown
 // (multi-floor is a builder-only feature; each floor is a standalone page version)
 
 // Sync sidebar when switching floors
@@ -11711,7 +11716,7 @@ function updateLandingButtons() {
   // Update pricing button text based on auth/premium
   const premiumBtn = document.getElementById('btn-pricing-premium');
   if (premiumBtn) {
-    premiumBtn.textContent = authToken ? 'Unlock Premium →' : 'Get Premium →';
+    premiumBtn.textContent = authToken ? 'Unlock Premium ΓåÆ' : 'Get Premium ΓåÆ';
   }
 }
 
@@ -11723,10 +11728,10 @@ document.addEventListener('click', function(e) {
     const isOpen = section.style.display !== 'none';
     if (isOpen) {
       section.style.display = 'none';
-      btn.textContent = 'Leaderboard ▸';
+      btn.textContent = 'Leaderboard Γû╕';
     } else {
       section.style.display = 'block';
-      btn.textContent = 'Leaderboard ▾';
+      btn.textContent = 'Leaderboard Γû╛';
       const list = document.getElementById('vz-list');
       if (list && !list.children.length) loadUsersPages(window.__LB_RANGE__ || 'all');
     }
@@ -11872,7 +11877,7 @@ const medalColors = [
                 <div style="height:100%;border-radius:1px;background:${colors.accent};opacity:0.2;"></div>
               </div>
               <div>
-                <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:${colors.text};min-width:48px;text-align:right;letter-spacing:-0.02em;">—</div>
+                <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:${colors.text};min-width:48px;text-align:right;letter-spacing:-0.02em;">ΓÇö</div>
                 <span style="font-size:9px;color:${colors.muted};display:block;text-align:right;letter-spacing:0.06em;text-transform:uppercase;margin-top:1px;">views</span>
               </div>
             </div>
@@ -11994,8 +11999,8 @@ function renderIdsTable(primary, aliases) {
 }
 
 function createIdsRow(num, value, type, aliasStr, isPrimary) {
-  const idDisplay = value ? escapeHtml(value) : '—';
-  const linkVal = value ? `seya.lol/${encodeURIComponent(value)}` : '—';
+  const idDisplay = value ? escapeHtml(value) : 'ΓÇö';
+  const linkVal = value ? `seya.lol/${encodeURIComponent(value)}` : 'ΓÇö';
 
   if (type === 'primary') {
     return `<tr>
@@ -12013,7 +12018,7 @@ function createIdsRow(num, value, type, aliasStr, isPrimary) {
       <td><span class="ids-id-value">${escapeHtml(value)}</span></td>
       <td><span class="ids-status"><span class="ids-status-dot active"></span><span class="ids-status-label active">Active</span></span></td>
       <td><a class="ids-link" href="/${encodeURIComponent(value)}" target="_blank">${linkVal}</a> <button class="ids-link-copy" data-alias="${escapeHtml(value)}">Copy</button></td>
-      <td><button class="ids-delete-btn" data-alias="${escapeHtml(value)}" data-action="delete-id" title="Delete this ID">✕</button></td>
+      <td><button class="ids-delete-btn" data-alias="${escapeHtml(value)}" data-action="delete-id" title="Delete this ID">Γ£ò</button></td>
     </tr>`;
   }
 
@@ -12030,9 +12035,9 @@ function createIdsRow(num, value, type, aliasStr, isPrimary) {
   if (type === 'locked') {
     return `<tr>
       <td class="ids-col-num">${num}</td>
-      <td><span class="ids-id-value ids-id-disabled">🔒 Locked</span></td>
+      <td><span class="ids-id-value ids-id-disabled">≡ƒöÆ Locked</span></td>
       <td><span class="ids-status"><span class="ids-status-dot locked"></span><span class="ids-status-label locked">Unavailable</span></span></td>
-      <td><span class="ids-link ids-link-disabled">—</span></td>
+      <td><span class="ids-link ids-link-disabled">ΓÇö</span></td>
       <td></td>
     </tr>`;
   }
@@ -12159,7 +12164,7 @@ function setupIdsCopyButtons() {
 }
 
 /* ================================================
-   DELETE ALIAS — two-step confirm modal
+   DELETE ALIAS ΓÇö two-step confirm modal
    ================================================ */
 let _pendingDeleteAlias = '';
 
@@ -12178,6 +12183,7 @@ function setupIdsDeleteModal() {
     const val = acceptInput.value.trim();
     const okBtn = document.getElementById('confirm-accept-btn');
     const hint = document.getElementById('confirm-accept-hint');
+    if (!okBtn || !hint) return;
     if (val === 'Accept') {
       okBtn.disabled = false;
       hint.textContent = '';
@@ -12204,31 +12210,48 @@ function setupIdsDeleteModal() {
 }
 
 function showDeleteStep1(alias) {
+  const step1 = document.getElementById('confirm-step-1');
+  const step2 = document.getElementById('confirm-step-2');
+  const desc = document.getElementById('confirm-desc');
+  const overlay = document.getElementById('confirm-overlay');
+  if (!step1 || !step2 || !desc || !overlay) return;
   _pendingDeleteAlias = alias;
-  document.getElementById('confirm-step-1').style.display = '';
-  document.getElementById('confirm-step-2').style.display = 'none';
-  document.getElementById('confirm-desc').textContent = `Delete "${alias}"? This will remove the link seya.lol/${alias}. This action cannot be undone.`;
-  document.getElementById('confirm-overlay').style.display = 'flex';
+  step1.style.display = '';
+  step2.style.display = 'none';
+  desc.textContent = `Delete "${alias}"? This will remove the link seya.lol/${alias}. This action cannot be undone.`;
+  overlay.style.display = 'flex';
 }
 
 function showDeleteStep2() {
-  document.getElementById('confirm-step-1').style.display = 'none';
-  document.getElementById('confirm-step-2').style.display = '';
+  const step1 = document.getElementById('confirm-step-1');
+  const step2 = document.getElementById('confirm-step-2');
   const input = document.getElementById('confirm-accept-input');
+  const btn = document.getElementById('confirm-accept-btn');
+  const hint = document.getElementById('confirm-accept-hint');
+  if (!step1 || !step2 || !input || !btn || !hint) return;
+  step1.style.display = 'none';
+  step2.style.display = '';
   input.value = '';
-  document.getElementById('confirm-accept-btn').disabled = true;
-  document.getElementById('confirm-accept-hint').textContent = '';
+  btn.disabled = true;
+  hint.textContent = '';
   input.focus();
 }
 
 function closeConfirmModal() {
-  document.getElementById('confirm-overlay').style.display = 'none';
+  const overlay = document.getElementById('confirm-overlay');
+  const step1 = document.getElementById('confirm-step-1');
+  const step2 = document.getElementById('confirm-step-2');
+  const input = document.getElementById('confirm-accept-input');
+  const btn = document.getElementById('confirm-accept-btn');
+  const hint = document.getElementById('confirm-accept-hint');
+  if (!overlay || !step1 || !step2 || !input || !btn || !hint) return;
+  overlay.style.display = 'none';
   _pendingDeleteAlias = '';
-  document.getElementById('confirm-step-1').style.display = '';
-  document.getElementById('confirm-step-2').style.display = 'none';
-  document.getElementById('confirm-accept-input').value = '';
-  document.getElementById('confirm-accept-btn').disabled = true;
-  document.getElementById('confirm-accept-hint').textContent = '';
+  step1.style.display = '';
+  step2.style.display = 'none';
+  input.value = '';
+  btn.disabled = true;
+  hint.textContent = '';
 }
 
 async function confirmDeleteAlias() {
@@ -12236,6 +12259,9 @@ async function confirmDeleteAlias() {
   if (!alias) return;
 
   const btn = document.getElementById('confirm-accept-btn');
+  const hint = document.getElementById('confirm-accept-hint');
+  if (!btn || !hint) return;
+
   btn.disabled = true;
   btn.textContent = 'Deleting...';
 
@@ -12254,14 +12280,14 @@ async function confirmDeleteAlias() {
       closeConfirmModal();
       loadAliases();
     } else {
-      document.getElementById('confirm-accept-hint').textContent = data.error || 'Failed to delete';
-      document.getElementById('confirm-accept-hint').style.color = 'var(--danger)';
+      hint.textContent = data.error || 'Failed to delete';
+      hint.style.color = 'var(--danger)';
       btn.disabled = false;
       btn.textContent = 'Accept';
     }
   } catch (e) {
-    document.getElementById('confirm-accept-hint').textContent = 'Server error';
-    document.getElementById('confirm-accept-hint').style.color = 'var(--danger)';
+    hint.textContent = 'Server error';
+    hint.style.color = 'var(--danger)';
     btn.disabled = false;
     btn.textContent = 'Accept';
   }
@@ -12316,7 +12342,7 @@ function updateAnalyticsUI() {
   statTotal.textContent = formatNumber(analyticsData.totalViews || 0);
   document.getElementById('stat-avg').textContent = formatNumber(analyticsData.avgDaily || 0);
   document.getElementById('stat-best').textContent = formatNumber(analyticsData.bestDay || 0);
-  document.getElementById('stat-best-date').textContent = analyticsData.bestDayDate || '—';
+  document.getElementById('stat-best-date').textContent = analyticsData.bestDayDate || 'ΓÇö';
   document.getElementById('stat-visitors').textContent = formatNumber(analyticsData.totalVisitors || 0);
 
   drawAnalyticsChart(analyticsData.chart || []);
@@ -12497,7 +12523,7 @@ async function loadLinkStats() {
     if (data.premium_required) {
       const body = document.getElementById('link-stats-body');
       if (body) {
-        body.innerHTML = '<div class="link-stats-empty" style="color:#7c5ab8;">🔒 Link analytics require <strong>Premium</strong>. <a href="#" onclick="startPremiumPayment();return false;" style="color:#9b5dff;">Upgrade now →</a></div>';
+        body.innerHTML = '<div class="link-stats-empty" style="color:#7c5ab8;">≡ƒöÆ Link analytics require <strong>Premium</strong>. <a href="#" onclick="startPremiumPayment();return false;" style="color:#9b5dff;">Upgrade now ΓåÆ</a></div>';
       }
     }
   } catch (e) {
@@ -12529,7 +12555,7 @@ function updateLinkStatsUI(data) {
     } else if (link.emoji) {
       iconHtml = escapeHtml(link.emoji);
     } else {
-      iconHtml = '🔗';
+      iconHtml = '≡ƒöù';
     }
     const title = link.title
       ? escapeHtml(link.title)
@@ -12689,12 +12715,12 @@ function updatePremiumUI(data) {
 
   if (data && data.premium) {
     badge.style.display = 'inline';
-    desc.textContent = 'Lifetime premium — thank you!';
+    desc.textContent = 'Lifetime premium ΓÇö thank you!';
     cta.innerHTML = '<span style="font-size:11px;color:#7c5ab8;">Purchased ' + (data.purchase_date ? new Date(data.purchase_date).toLocaleDateString() : '') + '</span>';
   } else {
     badge.style.display = 'none';
     desc.textContent = 'One-time payment. Yours forever.';
-    cta.innerHTML = '<span style="font-size:11px;color:#7c5ab8;font-weight:600;">$3.99 USDT — Unlock →</span>';
+    cta.innerHTML = '<span style="font-size:11px;color:#7c5ab8;font-weight:600;">$3.99 USDT ΓÇö Unlock ΓåÆ</span>';
   }
 }
 
@@ -12774,7 +12800,7 @@ function startPaymentPolling() {
         clearInterval(_premiumPolling);
         _premiumPolling = null;
         hideToast();
-        showToast('Payment confirmed! Welcome to Premium! 🎉', 5000);
+        showToast('Payment confirmed! Welcome to Premium! ≡ƒÄë', 5000);
         loadPremiumStatus();
       } else if (data.status === 'expired' || data.status === 'cancelled') {
         clearInterval(_premiumPolling);
@@ -12926,7 +12952,7 @@ function cancel2FADisable() {
 }
 
 /* ================================================
-   FORGOT PASSWORD — via email verification
+   FORGOT PASSWORD ΓÇö via email verification
    ================================================ */
 function showForgotPasswordFlow() {
   const step1 = document.getElementById('cp-step-1');
@@ -12959,8 +12985,8 @@ function showForgotPasswordFlow() {
         <p class="input-hint" id="cp-reset-confirm-pw-hint"></p>
       </div>
     </div>
-    <button class="btn btn-primary btn--full" id="cp-reset-btn">Send Code →</button>
-    <button class="btn btn-ghost btn--sm" data-action="cancel-forgot-pw" style="margin-top:8px;display:block;width:100%;">← Back</button>
+    <button class="btn btn-primary btn--full" id="cp-reset-btn">Send Code ΓåÆ</button>
+    <button class="btn btn-ghost btn--sm" data-action="cancel-forgot-pw" style="margin-top:8px;display:block;width:100%;">ΓåÉ Back</button>
   `;
 
   step2.style.display = 'none';
@@ -13005,20 +13031,20 @@ async function handleForgotPasswordClick() {
         document.getElementById('cp-reset-email').disabled = true;
         hint.textContent = 'Code sent to ' + data.message.replace('Code sent to ', '');
         hint.style.color = '#4ade80';
-        btn.textContent = 'Reset Password →';
+        btn.textContent = 'Reset Password ΓåÆ';
         btn.disabled = false;
         document.getElementById('cp-reset-code').focus();
       } else {
         hint.textContent = data.error || 'Failed to send code';
         hint.style.color = 'var(--danger)';
         btn.disabled = false;
-        btn.textContent = 'Send Code →';
+        btn.textContent = 'Send Code ΓåÆ';
       }
     } catch (e) {
       hint.textContent = 'Server error';
       hint.style.color = 'var(--danger)';
       btn.disabled = false;
-      btn.textContent = 'Send Code →';
+      btn.textContent = 'Send Code ΓåÆ';
     }
   } else {
     // Reset password step
@@ -13064,13 +13090,13 @@ async function handleForgotPasswordClick() {
         codeHint.textContent = data.error || 'Failed to reset';
         codeHint.style.color = 'var(--danger)';
         btn.disabled = false;
-        btn.textContent = 'Reset Password →';
+        btn.textContent = 'Reset Password ΓåÆ';
       }
     } catch (e) {
       codeHint.textContent = 'Server error';
       codeHint.style.color = 'var(--danger)';
       btn.disabled = false;
-      btn.textContent = 'Reset Password →';
+      btn.textContent = 'Reset Password ΓåÆ';
     }
   }
 }
@@ -13141,13 +13167,13 @@ async function submit2FALogin() {
       hint.textContent = data.error || 'Invalid code';
       hint.style.color = 'var(--danger)';
       btn.disabled = false;
-      btn.textContent = 'Verify →';
+      btn.textContent = 'Verify ΓåÆ';
     }
   } catch (e) {
     hint.textContent = 'Server error';
     hint.style.color = 'var(--danger)';
     btn.disabled = false;
-    btn.textContent = 'Verify →';
+    btn.textContent = 'Verify ΓåÆ';
   }
 }
 
@@ -13159,7 +13185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('DOMContentLoaded', init);
 
-// 2FA setup — called after DOM
+// 2FA setup ΓÇö called after DOM
 document.addEventListener('DOMContentLoaded', () => {
   try {
     setup2FASection();
@@ -13311,7 +13337,7 @@ function renderTemplatesGrid(templates) {
           </div>
         </div>
         <div class="template-card-stats">
-          <span class="template-card-uses">👤 ${t.usage_count}</span>
+          <span class="template-card-uses">≡ƒæñ ${t.usage_count}</span>
         </div>
         ${t.tags && t.tags.length > 0 ? `
           <div class="template-card-tags">
@@ -13467,7 +13493,7 @@ function renderTemplateMiniPreview(pageData) {
       const linkColor = link.color || accentColor;
       if (isIconStyle) {
         const iconSize = Math.min(lw, lh);
-        linksHtml += `<div data-el="${key}" style="position:absolute;left:${lx}px;top:${ly}px;width:${iconSize}px;height:${iconSize}px;transform:rotate(${lRotate}deg);border-radius:50%;background:${linkColor};display:flex;align-items:center;justify-content:center;font-size:${Math.round(iconSize * 0.45)}px;color:#000;${link.glow ? 'filter:drop-shadow(0 0 6px ' + linkColor + ')' : ''}">${link.emoji || '🔗'}</div>`;
+        linksHtml += `<div data-el="${key}" style="position:absolute;left:${lx}px;top:${ly}px;width:${iconSize}px;height:${iconSize}px;transform:rotate(${lRotate}deg);border-radius:50%;background:${linkColor};display:flex;align-items:center;justify-content:center;font-size:${Math.round(iconSize * 0.45)}px;color:#000;${link.glow ? 'filter:drop-shadow(0 0 6px ' + linkColor + ')' : ''}">${link.emoji || '≡ƒöù'}</div>`;
       } else {
         linksHtml += `<div data-el="${key}" style="position:absolute;left:${lx}px;top:${ly}px;width:${lw}px;height:${lh}px;transform:rotate(${lRotate}deg);border-radius:8px;background:${linkColor};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#000;${link.glow ? 'box-shadow:0 0 10px ' + linkColor : ''}">${link.label || ''}</div>`;
       }
@@ -13538,7 +13564,7 @@ async function applyTemplate() {
     const data = await res.json();
     
     if (data.success) {
-      showToast('Template applied! 🎨');
+      showToast('Template applied! ≡ƒÄ¿');
       closeTemplateModal();
     } else {
       showToast(data.error || 'Failed to apply template');
@@ -13589,7 +13615,7 @@ async function createTemplateFromProfile() {
     const data = await res.json();
     
     if (data.success) {
-      showToast('Template created! 🎉');
+      showToast('Template created! ≡ƒÄë');
       closeCreateTemplateModal();
       loadTemplates();
     } else {

@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $db_config = [
     'host' => 'localhost',
     'port' => 3306,
@@ -28,7 +31,8 @@ try {
     $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
+    ob_clean();
+echo json_encode(['error' => 'Database connection failed']);
     exit;
 }
 
@@ -69,7 +73,8 @@ if (!empty($tokenFromQuery)) {
 }
 if (!$token) {
     http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+    ob_clean();
+echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
 
@@ -79,7 +84,8 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
     http_response_code(401);
-    echo json_encode(['error' => 'Invalid token']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid token']);
     exit;
 }
 
@@ -88,7 +94,8 @@ $pStmt = $pdo->prepare("SELECT 1 FROM premium_users WHERE user_id = ? AND activa
 $pStmt->execute([$user['id']]);
 if (!$pStmt->fetchColumn()) {
     http_response_code(403);
-    echo json_encode(['error' => 'Link analytics require premium subscription', 'premium_required' => true]);
+    ob_clean();
+echo json_encode(['error' => 'Link analytics require premium subscription', 'premium_required' => true]);
     exit;
 }
 
@@ -182,7 +189,8 @@ try {
 
     $totalClicks = array_sum(array_column($links, 'clicks'));
 
-    echo json_encode([
+    ob_clean();
+echo json_encode([
         'success' => true,
         'links' => $links,
         'totalClicks' => $totalClicks,
@@ -191,5 +199,6 @@ try {
 } catch (Exception $e) {
     error_log('link-stats.php error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to load link stats']);
+    ob_clean();
+echo json_encode(['error' => 'Failed to load link stats']);
 }

@@ -9,15 +9,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $url = $_GET['url'] ?? '';
 
 if (empty($url)) {
-    echo json_encode(['error' => 'No URL provided']);
+    ob_clean();
+echo json_encode(['error' => 'No URL provided']);
     exit;
 }
 
 if (!filter_var($url, FILTER_VALIDATE_URL)) {
-    echo json_encode(['error' => 'Invalid URL']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid URL']);
     exit;
 }
 
@@ -35,7 +40,8 @@ $imageData = @file_get_contents($url, false, $context);
 
 if ($imageData === false) {
     http_response_code(400);
-    echo json_encode(['error' => 'Failed to fetch image']);
+    ob_clean();
+echo json_encode(['error' => 'Failed to fetch image']);
     exit;
 }
 
@@ -44,11 +50,13 @@ $mimeType = $finfo->buffer($imageData);
 
 if (!str_starts_with($mimeType, 'image/')) {
     http_response_code(400);
-    echo json_encode(['error' => 'Not an image']);
+    ob_clean();
+echo json_encode(['error' => 'Not an image']);
     exit;
 }
 
 $base64 = base64_encode($imageData);
 $dataUrl = 'data:' . $mimeType . ';base64,' . $base64;
 
+ob_clean();
 echo json_encode(['dataUrl' => $dataUrl]);

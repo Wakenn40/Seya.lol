@@ -12,12 +12,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../lib/totp.php';
 
+ini_set('display_errors', '0');
+ob_start();
+
 $input = json_decode(file_get_contents('php://input'), true);
 $username = isset($input['username']) ? trim($input['username']) : '';
 $code = isset($input['code']) ? trim($input['code']) : '';
 
 if (!$username || !$code) {
     http_response_code(400);
+    ob_clean();
     echo json_encode(['error' => 'Username and code required']);
     exit;
 }
@@ -28,18 +32,21 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
     http_response_code(404);
+    ob_clean();
     echo json_encode(['error' => 'User not found']);
     exit;
 }
 
 if (!$user['totp_secret']) {
     http_response_code(400);
+    ob_clean();
     echo json_encode(['error' => '2FA not enabled']);
     exit;
 }
 
 if (!TOTP::verifyCode($user['totp_secret'], $code)) {
     http_response_code(400);
+    ob_clean();
     echo json_encode(['error' => 'Invalid code']);
     exit;
 }
@@ -72,6 +79,7 @@ $pageData = $page ? [
     ]
 ] : null;
 
+ob_clean();
 echo json_encode([
     'success' => true,
     'token' => $newToken,

@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $db_config = [
     'host' => 'localhost',
     'port' => 3306,
@@ -28,6 +31,7 @@ try {
     $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 } catch (PDOException $e) {
     http_response_code(500);
+    ob_clean();
     echo json_encode(['error' => 'Database connection failed', 'details' => $e->getMessage()]);
     exit;
 }
@@ -35,6 +39,7 @@ try {
 $input = file_get_contents('php://input');
 if (empty($input)) {
     http_response_code(400);
+    ob_clean();
     echo json_encode(['error' => 'Empty request body']);
     exit;
 }
@@ -42,6 +47,7 @@ if (empty($input)) {
 $data = json_decode($input, true);
 if (!$data) {
     http_response_code(400);
+    ob_clean();
     echo json_encode(['error' => 'Invalid JSON']);
     exit;
 }
@@ -51,6 +57,7 @@ $password = $data['password'] ?? '';
 
 if (!$username || !$password) {
     http_response_code(400);
+    ob_clean();
     echo json_encode(['error' => 'Username and password required']);
     exit;
 }
@@ -63,6 +70,7 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user || !password_verify($password, $user['password'])) {
     http_response_code(401);
+    ob_clean();
     echo json_encode(['error' => 'Invalid username or password']);
     exit;
 }
@@ -237,6 +245,9 @@ function refreshDiscordData($pdo, $userId) {
     $user = json_decode($res, true);
     if (!isset($user['id'])) return false;
 
+    try { $pdo->exec("ALTER TABLE pages ADD COLUMN discord_public_flags INT DEFAULT 0"); } catch (PDOException $e) {}
+    try { $pdo->exec("ALTER TABLE pages ADD COLUMN discord_premium_type INT DEFAULT 0"); } catch (PDOException $e) {}
+
     $stmt = $pdo->prepare('UPDATE pages SET discord_id = ?, discord_username = ?, discord_avatar = ?, discord_discriminator = ?, discord_public_flags = ?, discord_premium_type = ? WHERE user_id = ?');
     $stmt->execute([
         $user['id'],
@@ -268,6 +279,7 @@ try {
 
 // Check 2FA — if TOTP secret exists, require code before returning token
 if (!empty($user['totp_secret'])) {
+    ob_clean();
     echo json_encode([
         'success' => true,
         'requires2fa' => true
@@ -275,6 +287,7 @@ if (!empty($user['totp_secret'])) {
     exit;
 }
 
+ob_clean();
 echo json_encode([
     'success' => true,
     'token' => $newToken,

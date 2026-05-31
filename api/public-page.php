@@ -2,6 +2,9 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
+ob_start();
+ini_set('display_errors', '0');
+
 $db_config = [
     'host' => 'localhost',
     'port' => 3306,
@@ -19,7 +22,8 @@ try {
     );
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
+    ob_clean();
+echo json_encode(['error' => 'Database connection failed']);
     exit;
 }
 
@@ -27,7 +31,8 @@ $username = $_GET['user'] ?? '';
 
 if (!$username || !preg_match('/^[a-z0-9_.]+$/', $username)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid username']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid username']);
     exit;
 }
 
@@ -133,14 +138,16 @@ if (!$row) {
 }
 
 if (!$row) {
-    echo json_encode(['found' => false]);
+    ob_clean();
+echo json_encode(['found' => false]);
     exit;
 }
 
 $hasContent = !empty($row['display_name']) && $row['display_name'] !== '@' . $username;
 
 if (!$row['published'] || !$hasContent) {
-    echo json_encode([
+    ob_clean();
+echo json_encode([
         'found' => true,
         'published' => false,
         'message' => 'Page not found or not published'
@@ -218,6 +225,7 @@ $stmt = $pdo->prepare("SELECT 1 FROM premium_users WHERE user_id = ? AND activat
 $stmt->execute([$row['user_id']]);
 $premium = (bool)$stmt->fetchColumn();
 
+ob_clean();
 echo json_encode([
     'found' => true,
     'published' => true,

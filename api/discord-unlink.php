@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $db_config = [
     'host' => 'localhost',
     'port' => 3306,
@@ -26,6 +29,7 @@ try {
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
 } catch (PDOException $e) {
+    ob_clean();
     echo json_encode(['success' => false, 'error' => 'DB connection failed']);
     exit;
 }
@@ -52,6 +56,7 @@ if (!empty($tokenFromQuery)) {
     }
 
     if (!preg_match('/Bearer\s+(.+)/i', $auth, $matches)) {
+        ob_clean();
         echo json_encode(['success' => false, 'error' => 'Not authorized']);
         exit;
     }
@@ -63,6 +68,7 @@ $stmt->execute([$token]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
+    ob_clean();
     echo json_encode(['success' => false, 'error' => 'Invalid token']);
     exit;
 }
@@ -74,4 +80,5 @@ try { $pdo->exec("ALTER TABLE pages ADD COLUMN discord_token_expires INT DEFAULT
 $stmt = $pdo->prepare('UPDATE pages SET discord_id = "", discord_username = "", discord_avatar = "", discord_discriminator = "0", discord_public_flags = 0, discord_premium_type = 0, discord_widgets = 0, discord_access_token = NULL, discord_refresh_token = NULL, discord_token_expires = 0 WHERE user_id = ?');
 $stmt->execute([$user['id']]);
 
+ob_clean();
 echo json_encode(['success' => true]);

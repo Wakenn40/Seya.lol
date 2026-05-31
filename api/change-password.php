@@ -11,6 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config.php';
 
+ini_set('display_errors', '0');
+ob_start();
+
 $tokenFromQuery = $_GET['token'] ?? '';
 if (!empty($tokenFromQuery)) {
     $token = $tokenFromQuery;
@@ -46,13 +49,15 @@ if (!empty($tokenFromQuery)) {
 }
 if (!$token) {
     http_response_code(401);
-    echo json_encode(['error' => 'Not authenticated']);
+    ob_clean();
+echo json_encode(['error' => 'Not authenticated']);
     exit;
 }
 
 if (!isset($pdo) || !$pdo) {
     http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
+    ob_clean();
+echo json_encode(['error' => 'Database connection failed']);
     exit;
 }
 
@@ -62,21 +67,24 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user) {
     http_response_code(401);
-    echo json_encode(['error' => 'Invalid session']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid session']);
     exit;
 }
 
 $input = file_get_contents('php://input');
 if (empty($input)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Empty request body']);
+    ob_clean();
+echo json_encode(['error' => 'Empty request body']);
     exit;
 }
 
 $data = json_decode($input, true);
 if (!$data) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid JSON']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid JSON']);
     exit;
 }
 
@@ -87,23 +95,27 @@ if ($action === 'verify') {
 
     if (!$currentPassword) {
         http_response_code(400);
-        echo json_encode(['error' => 'Current password is required']);
+        ob_clean();
+echo json_encode(['error' => 'Current password is required']);
         exit;
     }
 
     if (!password_verify($currentPassword, $user['password'])) {
         http_response_code(400);
-        echo json_encode(['error' => 'Current password is incorrect']);
+        ob_clean();
+echo json_encode(['error' => 'Current password is incorrect']);
         exit;
     }
 
-    echo json_encode(['success' => true, 'message' => 'Password verified']);
+    ob_clean();
+echo json_encode(['success' => true, 'message' => 'Password verified']);
 } elseif ($action === 'update') {
     $newPassword = $data['newPassword'] ?? '';
 
     if (!$newPassword || strlen($newPassword) < 4) {
         http_response_code(400);
-        echo json_encode(['error' => 'New password must be at least 4 characters']);
+        ob_clean();
+echo json_encode(['error' => 'New password must be at least 4 characters']);
         exit;
     }
 
@@ -113,8 +125,10 @@ if ($action === 'verify') {
     $stmt = $pdo->prepare('UPDATE users SET password = ?, token = ? WHERE id = ?');
     $stmt->execute([$hashedPassword, $newToken, $user['id']]);
 
-    echo json_encode(['success' => true, 'message' => 'Password changed successfully']);
+    ob_clean();
+echo json_encode(['success' => true, 'message' => 'Password changed successfully']);
 } else {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid action']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid action']);
 }

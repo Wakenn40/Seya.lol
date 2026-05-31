@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $auth = '';
 $tokenFromQuery = $_GET['token'] ?? $_GET['auth'] ?? '';
 
@@ -41,13 +44,15 @@ if (!empty($tokenFromQuery)) {
     if (empty($auth)) {
         error_log('save-page: no Authorization header found');
         http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized', 'debug' => 'no auth header']);
+        ob_clean();
+echo json_encode(['error' => 'Unauthorized', 'debug' => 'no auth header']);
         exit;
     }
     if (!preg_match('/Bearer\s+(.+)/i', $auth, $matches)) {
         error_log('save-page: Bearer token not matched. auth=' . substr($auth, 0, 100));
         http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized', 'debug' => 'no bearer']);
+        ob_clean();
+echo json_encode(['error' => 'Unauthorized', 'debug' => 'no bearer']);
         exit;
     }
     $token = $matches[1];
@@ -74,7 +79,8 @@ try {
 } catch (PDOException $e) {
     error_log('save-page: DB connection failed: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
+    ob_clean();
+echo json_encode(['error' => 'Database connection failed']);
     exit;
 }
 
@@ -85,7 +91,8 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$user) {
     error_log('save-page: user not found for token');
     http_response_code(401);
-    echo json_encode(['error' => 'Invalid token']);
+    ob_clean();
+echo json_encode(['error' => 'Invalid token']);
     exit;
 }
 
@@ -304,6 +311,7 @@ error_log('save-page: VERIFIED layout.phone after save: ' . json_encode($verifyL
 $verifyFonts = json_decode($verifyRow['custom_fonts'] ?? '[]', true);
 error_log('save-page: VERIFIED customFonts after save: ' . json_encode($verifyFonts));
 
+ob_clean();
 echo json_encode([
     'success' => true,
     'debug' => [

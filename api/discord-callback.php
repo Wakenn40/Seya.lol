@@ -8,6 +8,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+ob_start();
+ini_set('display_errors', '0');
+
 $code = $_GET['code'] ?? null;
 $error = $_GET['error'] ?? null;
 $state = $_GET['state'] ?? null;
@@ -23,7 +26,8 @@ if ($error) {
 
 if (!$code) {
     http_response_code(400);
-    echo json_encode(['error' => 'No authorization code provided']);
+    ob_clean();
+echo json_encode(['error' => 'No authorization code provided']);
     exit;
 }
 
@@ -72,7 +76,8 @@ if (!isset($tokenInfo['access_token'])) {
         exit;
     }
     http_response_code(400);
-    echo json_encode(['error' => 'Failed to get access token', 'details' => $tokenResponse]);
+    ob_clean();
+echo json_encode(['error' => 'Failed to get access token', 'details' => $tokenResponse]);
     exit;
 }
 
@@ -164,7 +169,8 @@ if (!isset($discordUser['id'])) {
         exit;
     }
     http_response_code(400);
-    echo json_encode(['error' => 'Failed to get user info', 'details' => $userResponse]);
+    ob_clean();
+echo json_encode(['error' => 'Failed to get user info', 'details' => $userResponse]);
     exit;
 }
 
